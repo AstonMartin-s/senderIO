@@ -1,0 +1,8 @@
+node_modules
+dashboard/node_modules
+dashboard/dist
+.git
+.env
+*.log
+npm-debug.log*
+.DS_Store

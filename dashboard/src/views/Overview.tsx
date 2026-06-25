@@ -1,0 +1,149 @@
+import { api, usePolling, type Bm, type KpiFila } from "../api";
+import { Card, StatCard, ProgressBar, Dot } from "../components/ui";
+import { IconSend, IconCheck, IconAlert, IconLayers } from "../components/icons";
+import { estadoBm, estadoMeta } from "../lib/format";
+
+export default function Overview() {
+  const bmsQ = usePolling<Bm[]>(api.bms, 4000);
+  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 4000);
+
+  const bms = bmsQ.data ?? [];
+  const kpis = kpiQ.data ?? [];
+  const total = kpis.find((k) => k.bmId === "TOTAL");
+
+  const activos = bms.filter((b) => b.activo && !b.pausado).length;
+  const pausados = bms.filter((b) => b.activo && b.pausado).length;
+  const inactivos = bms.filter((b) => !b.activo).length;
+
+  const enviados = total?.enviados ?? 0;
+  const errores = total?.errores ?? 0;
+  const si = total?.si ?? 0;
+  const pctError = total?.pctError ?? 0;
+  const pctSi = total?.pctSi ?? 0;
+
+  const capacidad = bms
+    .filter((b) => b.activo)
+    .reduce(
+      (acc, b) => {
+        acc.usado += b.enviadosHoy;
+        acc.limite += b.limiteDiario;
+        return acc;
+      },
+      { usado: 0, limite: 0 }
+    );
+
+  const errColor =
+    pctError > 15 ? "text-rose-600" : pctError > 10 ? "text-amber-600" : "text-emerald-600";
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Enviados hoy"
+          value={enviados}
+          sub={`${capacidad.usado} / ${capacidad.limite} de la capacidad activa`}
+          icon={<IconSend className="h-5 w-5" />}
+        />
+        <StatCard
+          label="% Error 3132 (global)"
+          value={<span className={errColor}>{pctError}%</span>}
+          sub="Banda sana 5–10% · alerta >15%"
+          accent="bg-amber-50 text-amber-600"
+          icon={<IconAlert className="h-5 w-5" />}
+        />
+        <StatCard
+          label="Conversión SI"
+          value={`${pctSi}%`}
+          sub={`${si} respuestas afirmativas`}
+          accent="bg-emerald-50 text-emerald-600"
+          icon={<IconCheck className="h-5 w-5" />}
+        />
+        <StatCard
+          label="BMs"
+          value={
+            <span className="flex items-baseline gap-2">
+              {activos}
+              <span className="text-base font-medium text-slate-400">
+                / {bms.length}
+              </span>
+            </span>
+          }
+          sub={`${pausados} pausados · ${inactivos} inactivos`}
+          accent="bg-brand-50 text-brand-600"
+          icon={<IconLayers className="h-5 w-5" />}
+        />
+      </div>
+
+      <Card className="p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-900">
+            Capacidad usada hoy
+          </h3>
+          <span className="text-sm text-slate-500">
+            {capacidad.usado} / {capacidad.limite} envíos
+          </span>
+        </div>
+        <ProgressBar value={capacidad.usado} max={capacidad.limite} />
+      </Card>
+
+      <Card>
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h3 className="text-sm font-semibold text-slate-900">Estado por BM</h3>
+        </div>
+        <div className="divide-y divide-slate-50">
+          {bms.map((bm) => {
+            const est = estadoBm(bm);
+            const meta = estadoMeta[est];
+            return (
+              <div
+                key={bm.id}
+                className="flex items-center gap-4 px-5 py-3.5"
+              >
+                <div className="flex w-28 items-center gap-2.5">
+                  <Dot
+                    className={`${meta.dot} ${
+                      est === "activo" ? "animate-pulse-dot" : ""
+                    }`}
+                  />
+                  <span className="font-semibold text-slate-800">{bm.id}</span>
+                </div>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.soft} ${meta.text}`}
+                >
+                  {meta.label}
+                </span>
+                <div className="ml-auto flex items-center gap-8 text-sm">
+                  <div className="hidden w-40 sm:block">
+                    <ProgressBar
+                      value={bm.enviadosHoy}
+                      max={bm.limiteDiario}
+                    />
+                  </div>
+                  <span className="w-20 text-right tabular-nums text-slate-600">
+                    {bm.enviadosHoy}/{bm.limiteDiario}
+                  </span>
+                  <span
+                    className={`w-16 text-right tabular-nums ${
+                      Number(bm.pctErrorMovil) > 15
+                        ? "text-rose-600"
+                        : Number(bm.pctErrorMovil) > 10
+                          ? "text-amber-600"
+                          : "text-slate-500"
+                    }`}
+                  >
+                    {bm.pctErrorMovil}%
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {bms.length === 0 && (
+            <div className="px-5 py-10 text-center text-sm text-slate-400">
+              Sin BMs cargados.
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}

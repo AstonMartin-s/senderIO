@@ -1,0 +1,359 @@
+import { useState } from "react";
+import { api, usePolling, type Bm } from "../api";
+import { Card, Button, Toggle, ProgressBar, Dot } from "../components/ui";
+import {
+  IconPause,
+  IconPlay,
+  IconEdit,
+  IconClose,
+  IconPlus,
+  IconRefresh,
+  IconClock,
+} from "../components/icons";
+import { estadoBm, estadoMeta, timeAgo, timeUntil } from "../lib/format";
+
+export default function BmsView() {
+  const { data, refresh } = usePolling<Bm[]>(api.bms, 4000);
+  const [editing, setEditing] = useState<Bm | "new" | null>(null);
+  const bms = data ?? [];
+
+  async function act(fn: () => Promise<unknown>) {
+    await fn();
+    refresh();
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-500">
+          {bms.length} BMs · ajustá ritmo, límites y ventana sin redeploy.
+        </p>
+        <Button variant="primary" onClick={() => setEditing("new")}>
+          <IconPlus className="h-4 w-4" /> Alta de BM
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        {bms.map((bm) => {
+          const est = estadoBm(bm);
+          const meta = estadoMeta[est];
+          const pct = Number(bm.pctErrorMovil);
+          return (
+            <Card key={bm.id} className={`p-5 ring-1 ${meta.ring}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Dot
+                    className={`${meta.dot} ${est === "activo" ? "animate-pulse-dot" : ""}`}
+                  />
+                  <div>
+                    <h3 className="font-semibold text-slate-900">{bm.id}</h3>
+                    <p className="text-xs text-slate-400">
+                      pipeline {bm.pipelineId}
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ${meta.soft} ${meta.text}`}
+                >
+                  {meta.label}
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Enviados</span>
+                  <span className="tabular-nums font-medium text-slate-700">
+                    {bm.enviadosHoy} / {bm.limiteDiario}
+                  </span>
+                </div>
+                <ProgressBar value={bm.enviadosHoy} max={bm.limiteDiario} />
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                <Metric
+                  label="% error móvil"
+                  value={`${pct}%`}
+                  tone={pct > 15 ? "bad" : pct > 10 ? "warn" : "ok"}
+                />
+                <Metric
+                  label="Racha err."
+                  value={`${bm.erroresConsecutivos}/${bm.umbralErroresConsecutivos}`}
+                  tone={
+                    bm.erroresConsecutivos >= bm.umbralErroresConsecutivos
+                      ? "bad"
+                      : bm.erroresConsecutivos > 0
+                        ? "warn"
+                        : "ok"
+                  }
+                />
+                <Metric label="Errores hoy" value={String(bm.erroresHoy)} />
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1">
+                  <IconClock className="h-3.5 w-3.5" />
+                  ventana {bm.ventanaInicio.slice(0, 5)}–{bm.ventanaFin.slice(0, 5)}
+                </span>
+                <span>
+                  ritmo {bm.intervaloMinSeg}–{bm.intervaloMaxSeg}s
+                </span>
+                <span>último envío {timeAgo(bm.ultimoEnvio)}</span>
+                {bm.activo && !bm.pausado && (
+                  <span>próximo {timeUntil(bm.proximoTickAt)}</span>
+                )}
+              </div>
+
+              <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4">
+                {bm.pausado ? (
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={() => act(() => api.resume(bm.id))}
+                  >
+                    <IconPlay className="h-3.5 w-3.5" /> Reanudar
+                  </Button>
+                ) : (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => act(() => api.pause(bm.id))}
+                  >
+                    <IconPause className="h-3.5 w-3.5" /> Pausar
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => act(() => api.resetContadores(bm.id))}
+                >
+                  <IconRefresh className="h-3.5 w-3.5" /> Reset
+                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-xs text-slate-400">activo</span>
+                  <Toggle
+                    checked={bm.activo}
+                    onChange={(v) => act(() => api.patchBm(bm.id, { activo: v }))}
+                  />
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(bm)}>
+                    <IconEdit className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {editing && (
+        <BmModal
+          bm={editing === "new" ? null : editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "ok" | "warn" | "bad" | "neutral";
+}) {
+  const colors = {
+    ok: "text-emerald-600",
+    warn: "text-amber-600",
+    bad: "text-rose-600",
+    neutral: "text-slate-700",
+  };
+  return (
+    <div className="rounded-xl bg-slate-50 px-2 py-2.5">
+      <p className={`text-lg font-bold tabular-nums ${colors[tone]}`}>{value}</p>
+      <p className="mt-0.5 text-[11px] text-slate-400">{label}</p>
+    </div>
+  );
+}
+
+function BmModal({
+  bm,
+  onClose,
+  onSaved,
+}: {
+  bm: Bm | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isNew = bm === null;
+  const [form, setForm] = useState<Record<string, string>>({
+    id: bm?.id ?? "",
+    nombre: bm?.nombre ?? "",
+    pipelineId: String(bm?.pipelineId ?? ""),
+    stageOrigenId: String(bm?.stageOrigenId ?? ""),
+    stageDestinoId: String(bm?.stageDestinoId ?? ""),
+    stageErrorId: String(bm?.stageErrorId ?? ""),
+    stageSiId: String(bm?.stageSiId ?? ""),
+    stageNoId: String(bm?.stageNoId ?? ""),
+    limiteDiario: String(bm?.limiteDiario ?? 30),
+    intervaloMinSeg: String(bm?.intervaloMinSeg ?? 120),
+    intervaloMaxSeg: String(bm?.intervaloMaxSeg ?? 180),
+    ventanaInicio: (bm?.ventanaInicio ?? "17:30").slice(0, 5),
+    ventanaFin: (bm?.ventanaFin ?? "23:59").slice(0, 5),
+    pausaCortaMin: String(bm?.pausaCortaMin ?? 5),
+    pausaCortaMax: String(bm?.pausaCortaMax ?? 10),
+    umbralErroresConsecutivos: String(bm?.umbralErroresConsecutivos ?? 5),
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function set(k: string, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    const num = (v: string) => (v === "" ? null : Number(v));
+    const payload: Record<string, unknown> = {
+      nombre: form.nombre,
+      pipelineId: Number(form.pipelineId),
+      stageOrigenId: Number(form.stageOrigenId),
+      stageDestinoId: Number(form.stageDestinoId),
+      stageErrorId: Number(form.stageErrorId),
+      stageSiId: num(form.stageSiId),
+      stageNoId: num(form.stageNoId),
+      limiteDiario: Number(form.limiteDiario),
+      intervaloMinSeg: Number(form.intervaloMinSeg),
+      intervaloMaxSeg: Number(form.intervaloMaxSeg),
+      ventanaInicio: form.ventanaInicio,
+      ventanaFin: form.ventanaFin,
+      pausaCortaMin: Number(form.pausaCortaMin),
+      pausaCortaMax: Number(form.pausaCortaMax),
+      umbralErroresConsecutivos: Number(form.umbralErroresConsecutivos),
+    };
+    try {
+      if (isNew) {
+        await api.createBm({ id: form.id, ...payload } as never);
+      } else {
+        await api.patchBm(bm!.id, payload as never);
+      }
+      onSaved();
+    } catch (e) {
+      setError(String((e as Error).message));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative z-10 max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+          <h3 className="text-base font-semibold text-slate-900">
+            {isNew ? "Alta de BM" : `Editar ${bm!.id}`}
+          </h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+          >
+            <IconClose className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-6 px-6 py-5">
+          <Section title="Identidad y mapeo de etapas (Kommo)">
+            <div className="grid grid-cols-2 gap-3">
+              {isNew && (
+                <Field label="ID" value={form.id} onChange={(v) => set("id", v)} placeholder="BM6" />
+              )}
+              <Field label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
+              <Field label="pipeline_id" value={form.pipelineId} onChange={(v) => set("pipelineId", v)} />
+              <Field label="stage_origen" value={form.stageOrigenId} onChange={(v) => set("stageOrigenId", v)} />
+              <Field label="stage_destino (envío)" value={form.stageDestinoId} onChange={(v) => set("stageDestinoId", v)} />
+              <Field label="stage_error" value={form.stageErrorId} onChange={(v) => set("stageErrorId", v)} />
+              <Field label="stage_si" value={form.stageSiId} onChange={(v) => set("stageSiId", v)} />
+              <Field label="stage_no" value={form.stageNoId} onChange={(v) => set("stageNoId", v)} />
+            </div>
+          </Section>
+
+          <Section title="Ritmo y límites (aplica en caliente)">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <Field label="Límite diario" value={form.limiteDiario} onChange={(v) => set("limiteDiario", v)} />
+              <Field label="Intervalo mín (s)" value={form.intervaloMinSeg} onChange={(v) => set("intervaloMinSeg", v)} />
+              <Field label="Intervalo máx (s)" value={form.intervaloMaxSeg} onChange={(v) => set("intervaloMaxSeg", v)} />
+              <Field label="Ventana inicio" value={form.ventanaInicio} onChange={(v) => set("ventanaInicio", v)} type="time" />
+              <Field label="Ventana fin" value={form.ventanaFin} onChange={(v) => set("ventanaFin", v)} type="time" />
+              <Field label="Umbral racha error" value={form.umbralErroresConsecutivos} onChange={(v) => set("umbralErroresConsecutivos", v)} />
+              <Field label="Pausa corta mín (min)" value={form.pausaCortaMin} onChange={(v) => set("pausaCortaMin", v)} />
+              <Field label="Pausa corta máx (min)" value={form.pausaCortaMax} onChange={(v) => set("pausaCortaMax", v)} />
+            </div>
+          </Section>
+
+          {error && (
+            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-100 bg-white px-6 py-4">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={save} disabled={saving}>
+            {saving ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {title}
+      </h4>
+      {children}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-500">
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+      />
+    </label>
+  );
+}

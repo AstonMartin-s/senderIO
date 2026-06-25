@@ -1,0 +1,143 @@
+import { getBm, getActiveBms, patchBm, setProximoTick } from "../services/bm.js";
+import { registrarMovimiento } from "../services/movimientos.js";
+import { getKommoClient } from "../kommo/index.js";
+import {
+  dentroDeVentana,
+  intervaloAleatorioSeg,
+  todayLocal,
+} from "../lib/time.js";
+import type { BmConfig } from "../db/schema.js";
+
+const timers = new Map<string, NodeJS.Timeout>();
+/** Leads tomados por algún BM en este proceso (lock simple para origen compartido). */
+const enVuelo = new Set<number>();
+
+function programar(bmId: string, enSegundos: number) {
+  const prev = timers.get(bmId);
+  if (prev) clearTimeout(prev);
+  const t = setTimeout(() => {
+    tick(bmId).catch((err) => console.error(`[worker:${bmId}] error:`, err));
+  }, Math.max(1, enSegundos) * 1000);
+  timers.set(bmId, t);
+}
+
+async function programarProximoNormal(bm: BmConfig) {
+  const seg = intervaloAleatorioSeg(bm.intervaloMinSeg, bm.intervaloMaxSeg);
+  await setProximoTick(bm.id, new Date(Date.now() + seg * 1000));
+  programar(bm.id, seg);
+}
+
+async function tick(bmId: string) {
+  const bm = await getBm(bmId);
+  if (!bm || !bm.activo) {
+    timers.delete(bmId);
+    console.log(`[worker:${bmId}] inactivo, reloj detenido`);
+    return;
+  }
+
+  // Pausa dura (racha de errores): re-chequear en 60s por si lo reactivan.
+  if (bm.pausado) {
+    programar(bmId, 60);
+    return;
+  }
+
+  // Pausa corta por error aislado.
+  if (bm.pausadoHasta && bm.pausadoHasta.getTime() > Date.now()) {
+    const seg = Math.ceil((bm.pausadoHasta.getTime() - Date.now()) / 1000);
+    programar(bmId, seg);
+    return;
+  }
+
+  // Fuera de ventana horaria: re-chequear en 60s.
+  if (!dentroDeVentana(bm.ventanaInicio, bm.ventanaFin)) {
+    programar(bmId, 60);
+    return;
+  }
+
+  // Límite diario alcanzado: re-chequear en 5 min.
+  if (bm.enviadosHoy >= bm.limiteDiario) {
+    programar(bmId, 300);
+    return;
+  }
+
+  const kommo = getKommoClient();
+  const lead = await kommo.getFirstLeadInStage(bm.pipelineId, bm.stageOrigenId);
+
+  if (!lead) {
+    // Sin leads: no consume límite, reintenta en el próximo ciclo.
+    await programarProximoNormal(bm);
+    return;
+  }
+
+  // Lock simple para origen compartido entre BMs.
+  if (enVuelo.has(lead.id)) {
+    programar(bmId, 5);
+    return;
+  }
+  enVuelo.add(lead.id);
+
+  try {
+    await kommo.moveLead(lead.id, bm.pipelineId, bm.stageDestinoId);
+    await registrarMovimiento({
+      bmId: bm.id,
+      leadId: lead.id,
+      accion: "movido_a_envio",
+      resultado: "ok",
+      etapaDestino: bm.stageDestinoId,
+    });
+    await patchBm(bm.id, {
+      enviadosHoy: bm.enviadosHoy + 1,
+      ultimoEnvio: new Date(),
+      fecha: todayLocal(),
+    });
+    console.log(
+      `[worker:${bm.id}] lead ${lead.id} -> envío (${bm.enviadosHoy + 1}/${bm.limiteDiario})`
+    );
+  } finally {
+    enVuelo.delete(lead.id);
+  }
+
+  await programarProximoNormal(bm);
+}
+
+/** Arranca un reloj por cada BM activo, recuperando el estado tras reinicio. */
+export async function startScheduler() {
+  const bms = await getActiveBms();
+  console.log(`[worker] arrancando ${bms.length} relojes...`);
+  for (const bm of bms) {
+    // Recuperación: si había un próximo tick futuro, respetarlo; si no, arrancar
+    // con un pequeño retardo aleatorio para no disparar todos en ráfaga.
+    let enSeg: number;
+    if (bm.proximoTickAt && bm.proximoTickAt.getTime() > Date.now()) {
+      enSeg = Math.ceil((bm.proximoTickAt.getTime() - Date.now()) / 1000);
+    } else {
+      enSeg = intervaloAleatorioSeg(2, 20);
+    }
+    programar(bm.id, enSeg);
+    console.log(`[worker:${bm.id}] primer tick en ${enSeg}s`);
+  }
+}
+
+/**
+ * Reacción inmediata a un cambio hecho en el panel (vía LISTEN/NOTIFY).
+ * Reprograma un tick casi instantáneo: tick() re-lee la config y decide
+ * (enviar, pausar, detener si quedó inactivo, etc.).
+ */
+export function reevaluar(bmId: string) {
+  console.log(`[worker:${bmId}] reevaluación inmediata (panel)`);
+  programar(bmId, 1);
+}
+
+/** Reevalúa todos los BMs (activos + los que tengan reloj). Para reset diario. */
+export async function reevaluarTodos() {
+  const activos = await getActiveBms();
+  const ids = new Set<string>([...timers.keys(), ...activos.map((b) => b.id)]);
+  console.log(`[worker] reevaluación global de ${ids.size} BMs (panel)`);
+  for (const id of ids) programar(id, 1);
+}
+
+/** Detiene todos los relojes (apagado limpio). */
+export function stopScheduler() {
+  for (const t of timers.values()) clearTimeout(t);
+  timers.clear();
+}
