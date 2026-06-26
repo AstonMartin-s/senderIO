@@ -93,6 +93,77 @@ export async function computeSnapshot(fechaLocal: string): Promise<KpiFila[]> {
   return [...porBm.values(), total];
 }
 
+/** Agrega filas KpiFila a partir de movimientos ya traídos. */
+function agregar(rows: { bmId: string; accion: string }[]): KpiFila[] {
+  const porBm = new Map<string, KpiFila>();
+  const ensure = (bmId: string) => {
+    let f = porBm.get(bmId);
+    if (!f) {
+      f = { bmId, enviados: 0, si: 0, no: 0, errores: 0, pctError: 0, pctSi: 0 };
+      porBm.set(bmId, f);
+    }
+    return f;
+  };
+  for (const r of rows) {
+    const f = ensure(r.bmId);
+    switch (r.accion) {
+      case "movido_a_envio":
+        f.enviados++;
+        break;
+      case "resultado_si":
+        f.si++;
+        break;
+      case "resultado_no":
+        f.no++;
+        break;
+      case "resultado_error":
+        f.errores++;
+        break;
+    }
+  }
+  const total: KpiFila = {
+    bmId: "TOTAL",
+    enviados: 0,
+    si: 0,
+    no: 0,
+    errores: 0,
+    pctError: 0,
+    pctSi: 0,
+  };
+  for (const f of porBm.values()) {
+    const base = f.si + f.no + f.errores;
+    f.pctError = base ? Math.round((f.errores / base) * 10000) / 100 : 0;
+    f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
+    total.enviados += f.enviados;
+    total.si += f.si;
+    total.no += f.no;
+    total.errores += f.errores;
+  }
+  const baseTotal = total.si + total.no + total.errores;
+  total.pctError = baseTotal
+    ? Math.round((total.errores / baseTotal) * 10000) / 100
+    : 0;
+  total.pctSi = total.enviados
+    ? Math.round((total.si / total.enviados) * 10000) / 100
+    : 0;
+  return [...porBm.values(), total];
+}
+
+/** KPIs en vivo para un rango arbitrario (desde el log, incluye el día actual). */
+export async function computeRange(
+  desde?: string,
+  hasta?: string
+): Promise<KpiFila[]> {
+  const conds = [];
+  if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
+  if (hasta) conds.push(lte(logMovimientos.ts, new Date(hasta)));
+  const rows = await db
+    .select()
+    .from(logMovimientos)
+    .where(conds.length ? and(...conds) : undefined);
+  return agregar(rows);
+}
+
 /** Persiste el snapshot del día en kpi_snapshots. */
 export async function guardarSnapshot(fechaLocal: string): Promise<KpiFila[]> {
   const filas = await computeSnapshot(fechaLocal);

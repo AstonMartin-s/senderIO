@@ -88,6 +88,8 @@ export const api = {
     req<Bm>(`/api/bms/${id}/reset-contadores`, { method: "POST" }),
   resetDiario: () => req<unknown>("/api/reset-diario", { method: "POST" }),
   kpisHoy: () => req<KpiFila[]>("/api/kpis/hoy"),
+  kpisRango: (f: LogFiltro = {}) =>
+    req<KpiFila[]>(`/api/kpis/rango?${filtroQS(f).replace(/^&/, "")}`),
   movimientos: (limit = 60, f: LogFiltro = {}) =>
     req<Movimiento[]>(`/api/movimientos?limit=${limit}${filtroQS(f)}`),
   /** URL de descarga directa del CSV (lo sirve el backend con Content-Disposition). */

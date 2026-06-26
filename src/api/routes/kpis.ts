@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { bmConfig, logMovimientos } from "../../db/schema.js";
-import { getKpis, computeSnapshot } from "../../services/kpis.js";
+import { getKpis, computeSnapshot, computeRange } from "../../services/kpis.js";
 import { getKommoClient } from "../../kommo/index.js";
 import { todayLocal } from "../../lib/time.js";
 
@@ -30,6 +30,13 @@ export async function kpiRoutes(app: FastifyInstance) {
   // KPIs del día en curso (calculados en vivo desde el log).
   app.get("/api/kpis/hoy", async () => {
     return computeSnapshot(todayLocal());
+  });
+
+  // KPIs en vivo para un rango de fechas (desde el log). Sin rango = hoy.
+  app.get("/api/kpis/rango", async (req) => {
+    const q = req.query as { desde?: string; hasta?: string };
+    if (!q.desde && !q.hasta) return computeSnapshot(todayLocal());
+    return computeRange(q.desde, q.hasta);
   });
 
   // Log de movimientos en vivo.

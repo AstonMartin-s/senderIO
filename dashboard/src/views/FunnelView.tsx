@@ -9,7 +9,8 @@ import {
   Legend,
   Cell,
 } from "recharts";
-import { api, usePolling, type KpiFila } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import { api, usePolling, type KpiFila, type LogFiltro } from "../api";
 import { Card } from "../components/ui";
 import { useTheme } from "../lib/theme";
 
@@ -34,7 +35,26 @@ export default function FunnelView() {
     fontSize: 13,
   } as const;
   const cursorFill = dark ? "rgba(255,255,255,0.04)" : "#f8fafc";
-  const { data } = usePolling<KpiFila[]>(api.kpisHoy, 5000);
+
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
+  const filtro = useMemo<LogFiltro>(
+    () => ({
+      desde: desde ? `${desde}T00:00:00` : undefined,
+      hasta: hasta ? `${hasta}T23:59:59` : undefined,
+    }),
+    [desde, hasta]
+  );
+  const rango = !!(desde || hasta);
+
+  const { data, refresh } = usePolling<KpiFila[]>(
+    () => api.kpisRango(filtro),
+    5000
+  );
+  useEffect(() => {
+    refresh();
+  }, [filtro, refresh]);
+
   const kpis = data ?? [];
   const porBm = kpis.filter((k) => k.bmId !== "TOTAL");
   const total = kpis.find((k) => k.bmId === "TOTAL");
@@ -48,10 +68,44 @@ export default function FunnelView() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-muted">
+          {rango ? "Período seleccionado" : "Día en curso (hoy)"}
+        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            value={desde}
+            onChange={(e) => setDesde(e.target.value)}
+            title="Desde"
+            className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+          />
+          <span className="text-xs text-faint">→</span>
+          <input
+            type="date"
+            value={hasta}
+            onChange={(e) => setHasta(e.target.value)}
+            title="Hasta"
+            className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+          />
+          {rango && (
+            <button
+              onClick={() => {
+                setDesde("");
+                setHasta("");
+              }}
+              className="rounded-lg px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
+            >
+              Hoy
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold text-fg">
-            Embudo consolidado (hoy)
+            Embudo consolidado ({rango ? "período" : "hoy"})
           </h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
@@ -77,7 +131,7 @@ export default function FunnelView() {
 
         <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold text-fg">
-            Resultados por BM (hoy)
+            Resultados por BM ({rango ? "período" : "hoy"})
           </h3>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
