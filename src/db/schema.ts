@@ -52,6 +52,8 @@ export const bmConfig = pgTable("bm_config", {
 
   // Metadatos para el export de trazabilidad (plantilla_envio.csv).
   // Si quedan en null, el export cae a valores derivados (id/nombre) o defaults.
+  // Origen de la base: "crm" (interna, es_interno=true) | "spam" (externa, false).
+  fuenteEnvio: text("fuente_envio").notNull().default("crm"),
   plataforma: text("plataforma"), // "pam" | "mooney"
   templateNombre: text("template_nombre"), // nombre de la plantilla Meta
   campaignId: text("campaign_id"), // campaign_id_externo estable

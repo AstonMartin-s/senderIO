@@ -28,6 +28,7 @@ const createSchema = z.object({
   pausaCortaMin: z.number().int().optional(),
   pausaCortaMax: z.number().int().optional(),
   umbralErroresConsecutivos: z.number().int().optional(),
+  fuenteEnvio: z.enum(["crm", "spam"]).optional(),
   plataforma: z.enum(["pam", "mooney"]).nullable().optional(),
   templateNombre: z.string().nullable().optional(),
   campaignId: z.string().nullable().optional(),

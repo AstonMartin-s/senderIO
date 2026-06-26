@@ -197,14 +197,15 @@ export async function kpiRoutes(app: FastifyInstance) {
         const fallo = g.resultado === "error";
         const estadoFinal = fallo ? "failed" : respondio ? "read" : "sent";
         const tsResp = respondio ? toIsoAr(g.tsResultado) : "";
+        const fuente = bm?.fuenteEnvio ?? "crm";
         return [
-          "spam", // fuente_envio
+          fuente, // fuente_envio (crm interna | spam externa)
           bm?.plataforma ?? "mooney", // plataforma
           bm?.campaignId ?? g.bmId, // campaign_id_externo
           bm?.campaignNombre ?? bm?.nombre ?? g.bmId, // campaign_nombre
           bm?.templateNombre ?? "", // template_nombre
           g.telefono ?? "", // telefono (clave de cruce)
-          "", // es_interno (desconocido)
+          fuente === "crm" ? "true" : "false", // es_interno (derivado del origen)
           "", // segmento
           `senderio:${g.bmId}:${g.leadId}`, // message_id (surrogate estable)
           toIsoAr(g.tsEnviado), // ts_enviado

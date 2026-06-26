@@ -1,0 +1,1 @@
+ALTER TABLE "bm_config" ADD COLUMN "fuente_envio" text DEFAULT 'crm' NOT NULL;

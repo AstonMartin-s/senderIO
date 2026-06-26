@@ -28,6 +28,7 @@ export interface Bm {
   proximoTickAt: string | null;
   pausadoHasta: string | null;
   fecha: string | null;
+  fuenteEnvio: string;
   plataforma: string | null;
   templateNombre: string | null;
   campaignId: string | null;
