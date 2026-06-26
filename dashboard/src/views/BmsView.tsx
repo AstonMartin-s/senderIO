@@ -13,13 +13,39 @@ import {
 import { estadoBm, estadoMeta, timeAgo, timeUntil } from "../lib/format";
 
 export default function BmsView() {
-  const { data, refresh } = usePolling<Bm[]>(api.bms, 4000);
+  const { data, refresh, mutate } = usePolling<Bm[]>(api.bms, 4000);
   const [editing, setEditing] = useState<Bm | "new" | null>(null);
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
   const bms = data ?? [];
 
-  async function act(fn: () => Promise<unknown>) {
-    await fn();
-    refresh();
+  /**
+   * Acción optimista: aplica el cambio al instante en la UI, dispara el request,
+   * y al volver reemplaza con la verdad del servidor. Si falla, refresca.
+   */
+  async function act(
+    id: string,
+    optimistic: Partial<Bm>,
+    fn: () => Promise<unknown>
+  ) {
+    mutate((prev) =>
+      (prev ?? []).map((b) => (b.id === id ? { ...b, ...optimistic } : b))
+    );
+    setBusy((s) => ({ ...s, [id]: true }));
+    try {
+      const res = await fn();
+      if (res && typeof res === "object" && "id" in (res as Bm)) {
+        const updated = res as Bm;
+        mutate((prev) =>
+          (prev ?? []).map((b) => (b.id === id ? updated : b))
+        );
+      } else {
+        refresh();
+      }
+    } catch {
+      refresh(); // revertir al estado real ante error
+    } finally {
+      setBusy((s) => ({ ...s, [id]: false }));
+    }
   }
 
   return (
@@ -108,7 +134,14 @@ export default function BmsView() {
                   <Button
                     variant="success"
                     size="sm"
-                    onClick={() => act(() => api.resume(bm.id))}
+                    disabled={busy[bm.id]}
+                    onClick={() =>
+                      act(
+                        bm.id,
+                        { pausado: false, pausadoHasta: null, erroresConsecutivos: 0 },
+                        () => api.resume(bm.id)
+                      )
+                    }
                   >
                     <IconPlay className="h-3.5 w-3.5" /> Reanudar
                   </Button>
@@ -116,14 +149,24 @@ export default function BmsView() {
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => act(() => api.pause(bm.id))}
+                    disabled={busy[bm.id]}
+                    onClick={() =>
+                      act(bm.id, { pausado: true }, () => api.pause(bm.id))
+                    }
                   >
                     <IconPause className="h-3.5 w-3.5" /> Pausar
                   </Button>
                 )}
                 <Button
                   size="sm"
-                  onClick={() => act(() => api.resetContadores(bm.id))}
+                  disabled={busy[bm.id]}
+                  onClick={() =>
+                    act(
+                      bm.id,
+                      { enviadosHoy: 0, erroresHoy: 0, erroresConsecutivos: 0 },
+                      () => api.resetContadores(bm.id)
+                    )
+                  }
                 >
                   <IconRefresh className="h-3.5 w-3.5" /> Reset
                 </Button>
@@ -131,7 +174,10 @@ export default function BmsView() {
                   <span className="text-xs text-slate-400">activo</span>
                   <Toggle
                     checked={bm.activo}
-                    onChange={(v) => act(() => api.patchBm(bm.id, { activo: v }))}
+                    disabled={busy[bm.id]}
+                    onChange={(v) =>
+                      act(bm.id, { activo: v }, () => api.patchBm(bm.id, { activo: v }))
+                    }
                   />
                   <Button size="sm" variant="ghost" onClick={() => setEditing(bm)}>
                     <IconEdit className="h-4 w-4" />

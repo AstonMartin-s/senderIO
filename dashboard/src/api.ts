@@ -63,7 +63,11 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => req<{ ok: boolean; kommo: string; ts: string }>("/health"),
-  bms: () => req<Bm[]>("/api/bms"),
+  bms: async () => {
+    const list = await req<Bm[]>("/api/bms");
+    // Orden estable por id (BM1, BM2, …) para que las tarjetas no salten en cada poll.
+    return list.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  },
   patchBm: (id: string, patch: Partial<Bm>) =>
     req<Bm>(`/api/bms/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   createBm: (data: Partial<Bm>) =>
@@ -82,26 +86,42 @@ export const api = {
     req<Movimiento[]>(`/api/movimientos?limit=${limit}`),
 };
 
-/** Polling con refresco manual. */
+/** Polling con refresco manual y soporte para updates optimistas (mutate). */
 export function usePolling<T>(
   fn: () => Promise<T>,
   intervalMs = 4000
-): { data: T | null; error: string | null; loading: boolean; refresh: () => void } {
+): {
+  data: T | null;
+  error: string | null;
+  loading: boolean;
+  refresh: () => void;
+  mutate: (updater: (prev: T | null) => T | null) => void;
+} {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const fnRef = useRef(fn);
   fnRef.current = fn;
+  // Generación: se incrementa con cada mutate optimista. Un poll en vuelo que
+  // empezó antes de un mutate no debe pisar el estado más nuevo.
+  const genRef = useRef(0);
 
   const refresh = useCallback(() => {
+    const gen = genRef.current;
     fnRef
       .current()
       .then((d) => {
+        if (genRef.current !== gen) return; // hubo un mutate más nuevo, descartamos
         setData(d);
         setError(null);
       })
       .catch((e) => setError(String(e.message ?? e)))
       .finally(() => setLoading(false));
+  }, []);
+
+  const mutate = useCallback((updater: (prev: T | null) => T | null) => {
+    genRef.current += 1;
+    setData((prev) => updater(prev));
   }, []);
 
   useEffect(() => {
@@ -110,5 +130,5 @@ export function usePolling<T>(
     return () => clearInterval(t);
   }, [refresh, intervalMs]);
 
-  return { data, error, loading, refresh };
+  return { data, error, loading, refresh, mutate };
 }
