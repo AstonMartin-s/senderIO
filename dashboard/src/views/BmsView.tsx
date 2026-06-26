@@ -51,9 +51,15 @@ export default function BmsView() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          {bms.length} BMs · ajustá ritmo, límites y ventana sin redeploy.
-        </p>
+        <div>
+          <p className="text-sm text-slate-500">
+            {bms.length} BMs · ajustá ritmo, límites y ventana sin redeploy.
+          </p>
+          <p className="mt-0.5 text-xs text-slate-400">
+            <span className="font-medium text-slate-500">activo</span> = encender/apagar el BM ·{" "}
+            <span className="font-medium text-slate-500">Pausar</span> = freno temporal (cortafuegos), se reanuda en el reset diario.
+          </p>
+        </div>
         <Button variant="primary" onClick={() => setEditing("new")}>
           <IconPlus className="h-4 w-4" /> Alta de BM
         </Button>
@@ -134,7 +140,12 @@ export default function BmsView() {
                   <Button
                     variant="success"
                     size="sm"
-                    disabled={busy[bm.id]}
+                    disabled={busy[bm.id] || !bm.activo}
+                    title={
+                      !bm.activo
+                        ? "Encendé el BM (switch activo) para reanudarlo"
+                        : "Quita el freno temporal y vuelve a enviar"
+                    }
                     onClick={() =>
                       act(
                         bm.id,
@@ -149,7 +160,12 @@ export default function BmsView() {
                   <Button
                     variant="danger"
                     size="sm"
-                    disabled={busy[bm.id]}
+                    disabled={busy[bm.id] || !bm.activo}
+                    title={
+                      !bm.activo
+                        ? "El BM está apagado. Pausar es un freno temporal para BMs encendidos."
+                        : "Freno temporal: deja de enviar pero sigue encendido. Se reanuda solo en el reset diario."
+                    }
                     onClick={() =>
                       act(bm.id, { pausado: true }, () => api.pause(bm.id))
                     }
@@ -170,7 +186,10 @@ export default function BmsView() {
                 >
                   <IconRefresh className="h-3.5 w-3.5" /> Reset
                 </Button>
-                <div className="ml-auto flex items-center gap-2">
+                <div
+                  className="ml-auto flex items-center gap-2"
+                  title="Switch maestro: enciende o apaga el BM en la operación"
+                >
                   <span className="text-xs text-slate-400">activo</span>
                   <Toggle
                     checked={bm.activo}

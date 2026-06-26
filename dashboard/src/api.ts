@@ -82,8 +82,13 @@ export const api = {
     req<Bm>(`/api/bms/${id}/reset-contadores`, { method: "POST" }),
   resetDiario: () => req<unknown>("/api/reset-diario", { method: "POST" }),
   kpisHoy: () => req<KpiFila[]>("/api/kpis/hoy"),
-  movimientos: (limit = 60) =>
-    req<Movimiento[]>(`/api/movimientos?limit=${limit}`),
+  movimientos: (limit = 60, bm?: string) =>
+    req<Movimiento[]>(
+      `/api/movimientos?limit=${limit}${bm ? `&bm=${encodeURIComponent(bm)}` : ""}`
+    ),
+  /** URL de descarga directa del CSV (lo sirve el backend con Content-Disposition). */
+  movimientosCsvUrl: (bm?: string) =>
+    `/api/movimientos.csv${bm ? `?bm=${encodeURIComponent(bm)}` : ""}`,
 };
 
 /** Polling con refresco manual y soporte para updates optimistas (mutate). */

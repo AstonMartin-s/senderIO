@@ -23,6 +23,7 @@ export function Button({
   size = "md",
   type = "button",
   disabled,
+  title,
   className = "",
 }: {
   children: ReactNode;
@@ -31,6 +32,7 @@ export function Button({
   size?: "sm" | "md";
   type?: "button" | "submit";
   disabled?: boolean;
+  title?: string;
   className?: string;
 }) {
   const base =
@@ -52,6 +54,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`${base} ${sizes[size]} ${variants[variant]} ${className}`}
     >
       {children}
