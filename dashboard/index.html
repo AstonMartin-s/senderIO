@@ -6,10 +6,22 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <title>SenderIO · Orquestador de goteo</title>
+    <script>
+      // Aplica el tema antes del primer paint para evitar parpadeo.
+      (function () {
+        try {
+          var t = localStorage.getItem("senderio-theme");
+          if (!t) t = "dark";
+          if (t === "dark") document.documentElement.classList.add("dark");
+        } catch (e) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

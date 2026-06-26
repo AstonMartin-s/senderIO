@@ -12,11 +12,11 @@ import { IconDownload } from "../components/icons";
 import { clockHHmm } from "../lib/format";
 
 const accionMeta: Record<string, { label: string; cls: string }> = {
-  movido_a_envio: { label: "Movido a envío", cls: "bg-brand-50 text-brand-600" },
-  resultado_si: { label: "Resultado SI", cls: "bg-emerald-50 text-emerald-700" },
-  resultado_no: { label: "Resultado NO", cls: "bg-amber-50 text-amber-700" },
-  resultado_error: { label: "Resultado ERROR", cls: "bg-rose-50 text-rose-700" },
-  pausa_bm: { label: "Pausa BM", cls: "bg-slate-200 text-slate-700" },
+  movido_a_envio: { label: "Movido a envío", cls: "bg-brand-500/12 text-brand-600 dark:text-brand-300" },
+  resultado_si: { label: "Resultado SI", cls: "bg-emerald-500/12 text-emerald-600 dark:text-emerald-300" },
+  resultado_no: { label: "Resultado NO", cls: "bg-amber-500/12 text-amber-600 dark:text-amber-300" },
+  resultado_error: { label: "Resultado ERROR", cls: "bg-rose-500/12 text-rose-600 dark:text-rose-300" },
+  pausa_bm: { label: "Pausa BM", cls: "bg-surface-2 text-muted" },
 };
 
 export default function LogView() {
@@ -62,12 +62,12 @@ export default function LogView() {
       </div>
 
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
           <div className="flex items-center gap-3">
-            <h3 className="text-sm font-semibold text-slate-900">
+            <h3 className="text-sm font-semibold text-fg">
               Historial de movimientos
             </h3>
-            <span className="flex items-center gap-1.5 text-xs text-slate-400">
+            <span className="flex items-center gap-1.5 text-xs text-faint">
               <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-emerald-500" />
               en vivo
             </span>
@@ -76,7 +76,7 @@ export default function LogView() {
             <select
               value={bm}
               onChange={(e) => setBm(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
             >
               <option value="">Todos los BMs</option>
               {bms.map((b) => (
@@ -90,15 +90,15 @@ export default function LogView() {
               value={desde}
               onChange={(e) => setDesde(e.target.value)}
               title="Desde"
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
             />
-            <span className="text-xs text-slate-400">→</span>
+            <span className="text-xs text-faint">→</span>
             <input
               type="date"
               value={hasta}
               onChange={(e) => setHasta(e.target.value)}
               title="Hasta"
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+              className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
             />
             {(desde || hasta || bm) && (
               <button
@@ -107,14 +107,14 @@ export default function LogView() {
                   setDesde("");
                   setHasta("");
                 }}
-                className="rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+                className="rounded-lg px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
               >
                 Limpiar
               </button>
             )}
             <a
               href={api.movimientosCsvUrl(filtro)}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200 transition-all hover:bg-slate-50"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-fg ring-1 ring-line-strong transition-all hover:bg-surface-2"
             >
               <IconDownload className="h-3.5 w-3.5" /> Descargar CSV
             </a>
@@ -122,8 +122,8 @@ export default function LogView() {
         </div>
         <div className="max-h-[64vh] overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-slate-50/90 backdrop-blur">
-              <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400">
+            <thead className="sticky top-0 bg-surface/90 backdrop-blur">
+              <tr className="text-left text-[11px] uppercase tracking-wider text-faint">
                 <th className="px-5 py-2.5 font-medium">Hora</th>
                 <th className="px-2 py-2.5 font-medium">BM</th>
                 <th className="px-2 py-2.5 font-medium">Acción</th>
@@ -131,18 +131,18 @@ export default function LogView() {
                 <th className="px-5 py-2.5 text-right font-medium">Detalle</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-line">
               {rows.map((m) => {
                 const meta = accionMeta[m.accion] ?? {
                   label: m.accion,
-                  cls: "bg-slate-100 text-slate-600",
+                  cls: "bg-surface-2 text-muted",
                 };
                 return (
-                  <tr key={m.id} className="hover:bg-slate-50/50">
-                    <td className="w-20 px-5 py-3 tabular-nums text-slate-400">
+                  <tr key={m.id} className="transition-colors hover:bg-surface-2">
+                    <td className="w-20 px-5 py-3 tabular-nums text-faint">
                       {clockHHmm(m.ts)}
                     </td>
-                    <td className="w-16 px-2 py-3 font-semibold text-slate-700">
+                    <td className="w-16 px-2 py-3 font-semibold text-fg">
                       {m.bmId}
                     </td>
                     <td className="px-2 py-3">
@@ -152,10 +152,10 @@ export default function LogView() {
                         {meta.label}
                       </span>
                     </td>
-                    <td className="px-2 py-3 text-slate-500">
+                    <td className="px-2 py-3 text-muted tabular-nums">
                       {m.leadId ? `lead ${m.leadId}` : "—"}
                     </td>
-                    <td className="px-5 py-3 text-right text-xs text-slate-400">
+                    <td className="px-5 py-3 text-right text-xs text-faint">
                       {m.resultado ?? ""}
                       {m.etapaDestino ? ` · → ${m.etapaDestino}` : ""}
                     </td>
@@ -166,7 +166,7 @@ export default function LogView() {
                 <tr>
                   <td
                     colSpan={5}
-                    className="px-5 py-12 text-center text-slate-400"
+                    className="px-5 py-12 text-center text-faint"
                   >
                     Sin movimientos todavía.
                   </td>
@@ -190,18 +190,18 @@ function Stat({
   tone?: "brand" | "ok" | "warn" | "bad" | "neutral";
 }) {
   const colors = {
-    brand: "text-brand-600",
-    ok: "text-emerald-600",
-    warn: "text-amber-600",
-    bad: "text-rose-600",
-    neutral: "text-slate-700",
+    brand: "text-brand-500 dark:text-brand-300",
+    ok: "text-emerald-600 dark:text-emerald-300",
+    warn: "text-amber-600 dark:text-amber-300",
+    bad: "text-rose-600 dark:text-rose-300",
+    neutral: "text-fg",
   };
   return (
     <Card className="px-4 py-3">
       <p className={`text-2xl font-bold tabular-nums ${colors[tone]}`}>
         {value}
       </p>
-      <p className="mt-0.5 text-[11px] text-slate-400">{label}</p>
+      <p className="mt-0.5 text-[11px] text-faint">{label}</p>
     </Card>
   );
 }

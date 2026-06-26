@@ -52,12 +52,12 @@ export default function BmsView() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted">
             {bms.length} BMs · ajustá ritmo, límites y ventana sin redeploy.
           </p>
-          <p className="mt-0.5 text-xs text-slate-400">
-            <span className="font-medium text-slate-500">activo</span> = encender/apagar el BM ·{" "}
-            <span className="font-medium text-slate-500">Pausar</span> = freno temporal (cortafuegos), se reanuda en el reset diario.
+          <p className="mt-0.5 text-xs text-faint">
+            <span className="font-medium text-muted">activo</span> = encender/apagar el BM ·{" "}
+            <span className="font-medium text-muted">Pausar</span> = freno temporal (cortafuegos), se reanuda en el reset diario.
           </p>
         </div>
         <Button variant="primary" onClick={() => setEditing("new")}>
@@ -71,15 +71,15 @@ export default function BmsView() {
           const meta = estadoMeta[est];
           const pct = Number(bm.pctErrorMovil);
           return (
-            <Card key={bm.id} className={`p-5 ring-1 ${meta.ring}`}>
+            <Card key={bm.id} className={`p-5 ring-1 ${meta.ring} transition-transform hover:-translate-y-0.5`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
                   <Dot
                     className={`${meta.dot} ${est === "activo" ? "animate-pulse-dot" : ""}`}
                   />
                   <div>
-                    <h3 className="font-semibold text-slate-900">{bm.id}</h3>
-                    <p className="text-xs text-slate-400">
+                    <h3 className="font-semibold text-fg">{bm.id}</h3>
+                    <p className="text-xs text-faint tabular-nums">
                       pipeline {bm.pipelineId}
                     </p>
                   </div>
@@ -93,8 +93,8 @@ export default function BmsView() {
 
               <div className="mt-4">
                 <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Enviados</span>
-                  <span className="tabular-nums font-medium text-slate-700">
+                  <span className="text-muted">Enviados</span>
+                  <span className="tabular-nums font-medium text-fg">
                     {bm.enviadosHoy} / {bm.limiteDiario}
                   </span>
                 </div>
@@ -121,7 +121,7 @@ export default function BmsView() {
                 <Metric label="Errores hoy" value={String(bm.erroresHoy)} />
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-slate-500">
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted">
                 <span className="inline-flex items-center gap-1">
                   <IconClock className="h-3.5 w-3.5" />
                   ventana {bm.ventanaInicio.slice(0, 5)}–{bm.ventanaFin.slice(0, 5)}
@@ -135,7 +135,7 @@ export default function BmsView() {
                 )}
               </div>
 
-              <div className="mt-5 flex items-center gap-2 border-t border-slate-100 pt-4">
+              <div className="mt-5 flex items-center gap-2 border-t border-line pt-4">
                 {bm.pausado ? (
                   <Button
                     variant="success"
@@ -190,7 +190,7 @@ export default function BmsView() {
                   className="ml-auto flex items-center gap-2"
                   title="Switch maestro: enciende o apaga el BM en la operación"
                 >
-                  <span className="text-xs text-slate-400">activo</span>
+                  <span className="text-xs text-faint">activo</span>
                   <Toggle
                     checked={bm.activo}
                     disabled={busy[bm.id]}
@@ -232,15 +232,15 @@ function Metric({
   tone?: "ok" | "warn" | "bad" | "neutral";
 }) {
   const colors = {
-    ok: "text-emerald-600",
-    warn: "text-amber-600",
-    bad: "text-rose-600",
-    neutral: "text-slate-700",
+    ok: "text-emerald-600 dark:text-emerald-300",
+    warn: "text-amber-600 dark:text-amber-300",
+    bad: "text-rose-600 dark:text-rose-300",
+    neutral: "text-fg",
   };
   return (
-    <div className="rounded-xl bg-slate-50 px-2 py-2.5">
+    <div className="rounded-xl bg-surface-2 px-2 py-2.5 ring-1 ring-line">
       <p className={`text-lg font-bold tabular-nums ${colors[tone]}`}>{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-400">{label}</p>
+      <p className="mt-0.5 text-[11px] text-faint">{label}</p>
     </div>
   );
 }
@@ -320,17 +320,17 @@ function BmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative z-10 max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
-          <h3 className="text-base font-semibold text-slate-900">
+      <div className="animate-fade-rise relative z-10 max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-surface ring-1 ring-line shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-6 py-4">
+          <h3 className="text-base font-semibold text-fg">
             {isNew ? "Alta de BM" : `Editar ${bm!.id}`}
           </h3>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+            className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg"
           >
             <IconClose className="h-5 w-5" />
           </button>
@@ -367,13 +367,13 @@ function BmModal({
           </Section>
 
           {error && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
               {error}
             </p>
           )}
         </div>
 
-        <div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-100 bg-white px-6 py-4">
+        <div className="sticky bottom-0 flex justify-end gap-2 border-t border-line bg-surface px-6 py-4">
           <Button variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
@@ -389,7 +389,7 @@ function BmModal({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <h4 className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-faint">
         {title}
       </h4>
       {children}
@@ -412,7 +412,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-500">
+      <span className="mb-1 block text-xs font-medium text-muted">
         {label}
       </span>
       <input
@@ -420,7 +420,7 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+        className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition placeholder:text-faint focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
       />
     </label>
   );

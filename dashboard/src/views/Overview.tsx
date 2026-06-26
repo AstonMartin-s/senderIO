@@ -33,7 +33,11 @@ export default function Overview() {
     );
 
   const errColor =
-    pctError > 15 ? "text-rose-600" : pctError > 10 ? "text-amber-600" : "text-emerald-600";
+    pctError > 15
+      ? "text-rose-600 dark:text-rose-300"
+      : pctError > 10
+        ? "text-amber-600 dark:text-amber-300"
+        : "text-emerald-600 dark:text-emerald-300";
 
   return (
     <div className="space-y-6">
@@ -48,14 +52,14 @@ export default function Overview() {
           label="% Error 3132 (global)"
           value={<span className={errColor}>{pctError}%</span>}
           sub="Banda sana 5–10% · alerta >15%"
-          accent="bg-amber-50 text-amber-600"
+          accent="bg-amber-500/12 text-amber-600 dark:text-amber-300"
           icon={<IconAlert className="h-5 w-5" />}
         />
         <StatCard
           label="Conversión SI"
           value={`${pctSi}%`}
           sub={`${si} respuestas afirmativas`}
-          accent="bg-emerald-50 text-emerald-600"
+          accent="bg-emerald-500/12 text-emerald-600 dark:text-emerald-300"
           icon={<IconCheck className="h-5 w-5" />}
         />
         <StatCard
@@ -63,23 +67,23 @@ export default function Overview() {
           value={
             <span className="flex items-baseline gap-2">
               {activos}
-              <span className="text-base font-medium text-slate-400">
+              <span className="text-base font-medium text-faint">
                 / {bms.length}
               </span>
             </span>
           }
           sub={`${pausados} pausados · ${inactivos} inactivos`}
-          accent="bg-brand-50 text-brand-600"
+          accent="bg-brand-500/12 text-brand-500 dark:text-brand-300"
           icon={<IconLayers className="h-5 w-5" />}
         />
       </div>
 
       <Card className="p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-900">
+          <h3 className="text-sm font-semibold text-fg">
             Capacidad usada hoy
           </h3>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-muted tabular-nums">
             {capacidad.usado} / {capacidad.limite} envíos
           </span>
         </div>
@@ -87,17 +91,17 @@ export default function Overview() {
       </Card>
 
       <Card>
-        <div className="border-b border-slate-100 px-5 py-4">
-          <h3 className="text-sm font-semibold text-slate-900">Estado por BM</h3>
+        <div className="border-b border-line px-5 py-4">
+          <h3 className="text-sm font-semibold text-fg">Estado por BM</h3>
         </div>
-        <div className="divide-y divide-slate-50">
+        <div className="divide-y divide-line">
           {bms.map((bm) => {
             const est = estadoBm(bm);
             const meta = estadoMeta[est];
             return (
               <div
                 key={bm.id}
-                className="flex items-center gap-4 px-5 py-3.5"
+                className="flex items-center gap-4 px-5 py-3.5 transition-colors hover:bg-surface-2"
               >
                 <div className="flex w-28 items-center gap-2.5">
                   <Dot
@@ -105,7 +109,7 @@ export default function Overview() {
                       est === "activo" ? "animate-pulse-dot" : ""
                     }`}
                   />
-                  <span className="font-semibold text-slate-800">{bm.id}</span>
+                  <span className="font-semibold text-fg">{bm.id}</span>
                 </div>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.soft} ${meta.text}`}
@@ -119,16 +123,16 @@ export default function Overview() {
                       max={bm.limiteDiario}
                     />
                   </div>
-                  <span className="w-20 text-right tabular-nums text-slate-600">
+                  <span className="w-20 text-right tabular-nums text-muted">
                     {bm.enviadosHoy}/{bm.limiteDiario}
                   </span>
                   <span
                     className={`w-16 text-right tabular-nums ${
                       Number(bm.pctErrorMovil) > 15
-                        ? "text-rose-600"
+                        ? "text-rose-600 dark:text-rose-300"
                         : Number(bm.pctErrorMovil) > 10
-                          ? "text-amber-600"
-                          : "text-slate-500"
+                          ? "text-amber-600 dark:text-amber-300"
+                          : "text-muted"
                     }`}
                   >
                     {bm.pctErrorMovil}%
@@ -138,7 +142,7 @@ export default function Overview() {
             );
           })}
           {bms.length === 0 && (
-            <div className="px-5 py-10 text-center text-sm text-slate-400">
+            <div className="px-5 py-10 text-center text-sm text-faint">
               Sin BMs cargados.
             </div>
           )}

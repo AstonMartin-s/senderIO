@@ -7,7 +7,10 @@ import {
   IconFunnel,
   IconActivity,
   IconRefresh,
+  IconSun,
+  IconMoon,
 } from "./components/icons";
+import { useTheme } from "./lib/theme";
 import Overview from "./views/Overview";
 import BmsView from "./views/BmsView";
 import FunnelView from "./views/FunnelView";
@@ -31,6 +34,7 @@ const TITLES: Record<View, { title: string; sub: string }> = {
 
 export default function App() {
   const [view, setView] = useState<View>("overview");
+  const { theme, toggle } = useTheme();
   const health = usePolling(api.health, 8000);
   const online = !!health.data?.ok;
   const mode = health.data?.kommo ?? "—";
@@ -43,14 +47,14 @@ export default function App() {
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <aside className="flex w-64 shrink-0 flex-col bg-ink-950 text-slate-300">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-line bg-surface">
         <div className="flex items-center gap-2.5 px-6 py-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-500 text-white shadow-lg shadow-brand-500/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30">
             <IconActivity className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-base font-bold text-white">SenderIO</p>
-            <p className="text-[11px] text-slate-500">Orquestador de goteo</p>
+            <p className="text-base font-bold tracking-tight text-fg">SenderIO</p>
+            <p className="text-[11px] text-faint">Orquestador de goteo</p>
           </div>
         </div>
 
@@ -62,12 +66,17 @@ export default function App() {
               <button
                 key={item.id}
                 onClick={() => setView(item.id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
                   active
-                    ? "bg-white/10 text-white"
-                    : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                    ? "bg-brand-500/12 text-brand-600 dark:text-brand-300"
+                    : "text-muted hover:bg-surface-2 hover:text-fg"
                 }`}
               >
+                <span
+                  className={`absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-500 transition-opacity ${
+                    active ? "opacity-100" : "opacity-0"
+                  }`}
+                />
                 <Icon className="h-[18px] w-[18px]" />
                 {item.label}
               </button>
@@ -75,24 +84,24 @@ export default function App() {
           })}
         </nav>
 
-        <div className="m-3 rounded-xl bg-white/5 p-4">
+        <div className="m-3 rounded-xl bg-surface-2 p-4 ring-1 ring-line">
           <div className="flex items-center gap-2">
             <span
               className={`h-2 w-2 rounded-full ${
                 online ? "animate-pulse-dot bg-emerald-400" : "bg-rose-500"
               }`}
             />
-            <span className="text-xs font-medium text-slate-300">
+            <span className="text-xs font-medium text-muted">
               {online ? "API conectada" : "API sin conexión"}
             </span>
           </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="mt-2 flex items-center justify-between text-[11px] text-faint">
             <span>Modo Kommo</span>
             <span
               className={`rounded-full px-2 py-0.5 font-semibold ${
                 mode === "real"
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-amber-500/15 text-amber-300"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300"
+                  : "bg-amber-500/15 text-amber-600 dark:text-amber-300"
               }`}
             >
               {mode.toUpperCase()}
@@ -103,23 +112,38 @@ export default function App() {
 
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-8 py-5 backdrop-blur">
+        <header className="flex items-center justify-between border-b border-line bg-surface/80 px-8 py-5 backdrop-blur">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-xl font-bold tracking-tight text-fg">
               {TITLES[view].title}
             </h1>
-            <p className="text-sm text-slate-500">{TITLES[view].sub}</p>
+            <p className="text-sm text-muted">{TITLES[view].sub}</p>
           </div>
-          <Button onClick={resetDiario}>
-            <IconRefresh className="h-4 w-4" /> Reset diario
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggle}
+              title={theme === "dark" ? "Cambiar a claro" : "Cambiar a oscuro"}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted ring-1 ring-line-strong transition-all hover:bg-surface-2 hover:text-fg active:scale-95"
+            >
+              {theme === "dark" ? (
+                <IconSun className="h-[18px] w-[18px]" />
+              ) : (
+                <IconMoon className="h-[18px] w-[18px]" />
+              )}
+            </button>
+            <Button onClick={resetDiario}>
+              <IconRefresh className="h-4 w-4" /> Reset diario
+            </Button>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto px-8 py-6">
-          {view === "overview" && <Overview />}
-          {view === "bms" && <BmsView />}
-          {view === "funnel" && <FunnelView />}
-          {view === "log" && <LogView />}
+          <div key={view} className="animate-fade-rise">
+            {view === "overview" && <Overview />}
+            {view === "bms" && <BmsView />}
+            {view === "funnel" && <FunnelView />}
+            {view === "log" && <LogView />}
+          </div>
         </main>
       </div>
     </div>
