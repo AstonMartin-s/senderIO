@@ -126,6 +126,28 @@ export class RealKommoClient implements KommoClient {
     }
   }
 
+  async getCampoLead(leadId: number, fieldId: number): Promise<string | null> {
+    try {
+      const res = await this.req(`/leads/${leadId}`);
+      if (res.status === 204) return null;
+      const lead = (await res.json()) as {
+        custom_fields_values?: Array<{
+          field_id?: number;
+          values?: Array<{ value?: string | number }>;
+        }> | null;
+      };
+      const field = (lead.custom_fields_values ?? []).find(
+        (f) => f.field_id === fieldId
+      );
+      const raw = field?.values?.[0]?.value;
+      const value = raw == null ? null : String(raw).trim();
+      return value || null;
+    } catch (err) {
+      console.error(`[kommo] no se pudo leer campo ${fieldId} de ${leadId}:`, err);
+      return null;
+    }
+  }
+
   async listPipelines(): Promise<KommoPipeline[]> {
     const res = await this.req(`/leads/pipelines`);
     if (res.status === 204) return [];

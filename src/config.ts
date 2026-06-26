@@ -15,6 +15,11 @@ export const config = {
     token: process.env.KOMMO_TOKEN ?? "",
     webhookSecret: process.env.KOMMO_WEBHOOK_SECRET ?? "",
     mode: (process.env.KOMMO_MODE ?? "mock") as "real" | "mock",
+    // ID del campo personalizado del lead donde el Salesbot escribe el nombre de
+    // la plantilla enviada. Si no está seteado, la reconciliación queda apagada.
+    cfPlantillaId: process.env.KOMMO_CF_PLANTILLA_ID
+      ? Number(process.env.KOMMO_CF_PLANTILLA_ID)
+      : null,
   },
   api: {
     // Railway (y la mayoría de PaaS) inyectan PORT; cae a API_PORT y luego 3000.

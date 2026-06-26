@@ -276,6 +276,7 @@ function BmModal({
     fuenteEnvio: bm?.fuenteEnvio ?? "crm",
     plataforma: bm?.plataforma ?? "",
     templateNombre: bm?.templateNombre ?? "",
+    mensajeTexto: bm?.mensajeTexto ?? "",
     campaignId: bm?.campaignId ?? "",
     campaignNombre: bm?.campaignNombre ?? "",
   });
@@ -310,6 +311,7 @@ function BmModal({
       fuenteEnvio: form.fuenteEnvio || "crm",
       plataforma: form.plataforma ? form.plataforma : null,
       templateNombre: form.templateNombre || null,
+      mensajeTexto: form.mensajeTexto || null,
       campaignId: form.campaignId || null,
       campaignNombre: form.campaignNombre || null,
     };
@@ -409,6 +411,18 @@ function BmModal({
               <Field label="campaign_id_externo" value={form.campaignId} onChange={(v) => set("campaignId", v)} placeholder={`default: ${bm?.id ?? "ID del BM"}`} />
               <Field label="campaign_nombre" value={form.campaignNombre} onChange={(v) => set("campaignNombre", v)} placeholder="default: nombre del BM" />
             </div>
+            <label className="mt-3 block">
+              <span className="mb-1 block text-xs font-medium text-muted">
+                Texto del mensaje (lo que se envía · columna mensaje_texto del CSV)
+              </span>
+              <textarea
+                value={form.mensajeTexto}
+                onChange={(e) => set("mensajeTexto", e.target.value)}
+                rows={3}
+                placeholder="Hola! Te escribimos de… {pegá acá el cuerpo de la plantilla}"
+                className="w-full resize-y rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+              />
+            </label>
           </Section>
 
           {error && (

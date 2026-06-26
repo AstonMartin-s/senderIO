@@ -1,0 +1,1 @@
+ALTER TABLE "bm_config" ADD COLUMN "mensaje_texto" text;

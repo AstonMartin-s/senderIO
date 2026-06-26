@@ -143,6 +143,7 @@ export async function kpiRoutes(app: FastifyInstance) {
       tsEnviado: Date | null;
       telefono: string | null;
       segmento: string | null;
+      plantilla: string | null;
       resultado: "si" | "no" | "error" | null;
       tsResultado: Date | null;
     };
@@ -158,6 +159,7 @@ export async function kpiRoutes(app: FastifyInstance) {
           tsEnviado: null,
           telefono: null,
           segmento: null,
+          plantilla: null,
           resultado: null,
           tsResultado: null,
         };
@@ -168,6 +170,7 @@ export async function kpiRoutes(app: FastifyInstance) {
         if (!g.tsEnviado) g.tsEnviado = ts;
         if (r.telefono) g.telefono = r.telefono;
         if (r.segmento) g.segmento = r.segmento;
+        if (r.plantilla) g.plantilla = r.plantilla;
       } else if (r.accion === "resultado_si") {
         g.resultado = "si";
         g.tsResultado = ts;
@@ -186,6 +189,7 @@ export async function kpiRoutes(app: FastifyInstance) {
       "campaign_id_externo",
       "campaign_nombre",
       "template_nombre",
+      "mensaje_texto",
       "telefono",
       "es_interno",
       "segmento",
@@ -218,7 +222,8 @@ export async function kpiRoutes(app: FastifyInstance) {
           bm?.plataforma ?? "mooney", // plataforma
           bm?.campaignId ?? g.bmId, // campaign_id_externo
           bm?.campaignNombre ?? bm?.nombre ?? g.bmId, // campaign_nombre
-          bm?.templateNombre ?? "", // template_nombre
+          g.plantilla ?? bm?.templateNombre ?? "", // template_nombre (plantilla real por envío; fallback a config del BM)
+          bm?.mensajeTexto ?? "", // mensaje_texto (cuerpo de la plantilla enviada)
           g.telefono ?? "", // telefono (clave de cruce)
           fuente === "crm" ? "true" : "false", // es_interno (derivado del origen)
           g.segmento ?? "", // segmento (etiqueta/lista del lead)

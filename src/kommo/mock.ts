@@ -80,6 +80,12 @@ export class MockKommoClient implements KommoClient {
     };
   }
 
+  async getCampoLead(leadId: number, _fieldId: number): Promise<string | null> {
+    // Simula la plantilla estampada por el Salesbot, rotando entre algunas.
+    const plantillas = ["bienvenida_curso", "promo_junio", "reactivacion_v2"];
+    return plantillas[leadId % plantillas.length];
+  }
+
   async listPipelines(): Promise<KommoPipeline[]> {
     return [
       {

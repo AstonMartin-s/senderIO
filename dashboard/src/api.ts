@@ -31,6 +31,7 @@ export interface Bm {
   fuenteEnvio: string;
   plataforma: string | null;
   templateNombre: string | null;
+  mensajeTexto: string | null;
   campaignId: string | null;
   campaignNombre: string | null;
 }

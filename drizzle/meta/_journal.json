@@ -36,6 +36,20 @@
       "when": 1782445834632,
       "tag": "0004_deep_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782487977128,
+      "tag": "0005_giant_raider",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782490545745,
+      "tag": "0006_regular_piledriver",
+      "breakpoints": true
     }
   ]
 }

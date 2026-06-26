@@ -56,6 +56,9 @@ export const bmConfig = pgTable("bm_config", {
   fuenteEnvio: text("fuente_envio").notNull().default("crm"),
   plataforma: text("plataforma"), // "pam" | "mooney"
   templateNombre: text("template_nombre"), // nombre de la plantilla Meta
+  // Texto/cuerpo de la plantilla que se envía (lo que el lead recibe). Fijo por
+  // BM; se vuelca tal cual en el CSV de trazabilidad (columna mensaje_texto).
+  mensajeTexto: text("mensaje_texto"),
   campaignId: text("campaign_id"), // campaign_id_externo estable
   campaignNombre: text("campaign_nombre"),
 
@@ -83,6 +86,10 @@ export const logMovimientos = pgTable("log_movimientos", {
   telefono: text("telefono"),
   // Etiqueta/lista del lead en Kommo (ej. "Lista12"), capturada al enviar.
   segmento: text("segmento"),
+  // Plantilla efectivamente enviada (la que el Salesbot estampa en el lead).
+  // Se completa de forma diferida por la pasada de reconciliación (jobs/plantillas).
+  // Null hasta que se resuelve; permite rotar plantillas en Kommo sin hardcodear.
+  plantilla: text("plantilla"),
   // movido_a_envio | resultado_si | resultado_no | resultado_error | pausa_bm
   accion: text("accion").notNull(),
   // ok | error_3132 | sin_leads

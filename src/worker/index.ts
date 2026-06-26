@@ -3,17 +3,20 @@ import { pool } from "../db/client.js";
 import { startScheduler, stopScheduler } from "./scheduler.js";
 import { startControlListener, stopControlListener } from "./listener.js";
 import { startResetCron } from "../jobs/reset.js";
+import { startPlantillasJob, stopPlantillasJob } from "../jobs/plantillas.js";
 
 async function main() {
   console.log(`[worker] iniciando (TZ=${config.tz}, kommo=${config.kommo.mode})`);
   await startScheduler();
   await startControlListener();
   startResetCron();
+  startPlantillasJob();
 }
 
 function shutdown() {
   console.log("[worker] apagando...");
   stopScheduler();
+  stopPlantillasJob();
   stopControlListener().finally(() => pool.end().finally(() => process.exit(0)));
 }
 

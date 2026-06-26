@@ -43,6 +43,12 @@ export interface KommoClient {
     leadId: number
   ): Promise<{ telefono: string | null; segmento: string | null }>;
 
+  /**
+   * Lee de un lead el valor del campo personalizado `fieldId` (el que el Salesbot
+   * usa para estampar la plantilla enviada). Devuelve null si no existe o falla.
+   */
+  getCampoLead(leadId: number, fieldId: number): Promise<string | null>;
+
   /** Lista pipelines y etapas (para el alta de BMs en el panel). */
   listPipelines(): Promise<KommoPipeline[]>;
 }

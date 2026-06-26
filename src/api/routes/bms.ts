@@ -31,6 +31,7 @@ const createSchema = z.object({
   fuenteEnvio: z.enum(["crm", "spam"]).optional(),
   plataforma: z.enum(["pam", "mooney"]).nullable().optional(),
   templateNombre: z.string().nullable().optional(),
+  mensajeTexto: z.string().nullable().optional(),
   campaignId: z.string().nullable().optional(),
   campaignNombre: z.string().nullable().optional(),
 });
