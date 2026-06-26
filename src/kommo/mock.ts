@@ -70,6 +70,11 @@ export class MockKommoClient implements KommoClient {
     return count;
   }
 
+  async getTelefono(leadId: number): Promise<string | null> {
+    // Teléfono determinístico y ficticio en E.164 para pruebas.
+    return `+54911${String(40000000 + (leadId % 60000000)).slice(0, 8)}`;
+  }
+
   async listPipelines(): Promise<KommoPipeline[]> {
     return [
       {

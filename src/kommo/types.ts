@@ -34,6 +34,12 @@ export interface KommoClient {
     limit?: number
   ): Promise<number>;
 
+  /**
+   * Devuelve el teléfono (E.164) del contacto principal del lead, o null si no
+   * se puede resolver. Best-effort: no debe frenar el envío si falla.
+   */
+  getTelefono(leadId: number): Promise<string | null>;
+
   /** Lista pipelines y etapas (para el alta de BMs en el panel). */
   listPipelines(): Promise<KommoPipeline[]>;
 }

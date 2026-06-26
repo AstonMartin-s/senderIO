@@ -28,6 +28,10 @@ export interface Bm {
   proximoTickAt: string | null;
   pausadoHasta: string | null;
   fecha: string | null;
+  plataforma: string | null;
+  templateNombre: string | null;
+  campaignId: string | null;
+  campaignNombre: string | null;
 }
 
 export interface Movimiento {
@@ -88,6 +92,9 @@ export const api = {
   /** URL de descarga directa del CSV (lo sirve el backend con Content-Disposition). */
   movimientosCsvUrl: (f: LogFiltro = {}) =>
     `/api/movimientos.csv?${filtroQS(f).replace(/^&/, "")}`,
+  /** CSV en formato del contrato de trazabilidad (plantilla_envio). */
+  trazabilidadCsvUrl: (f: LogFiltro = {}) =>
+    `/api/trazabilidad.csv?${filtroQS(f).replace(/^&/, "")}`,
 };
 
 export interface LogFiltro {

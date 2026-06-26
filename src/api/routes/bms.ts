@@ -28,6 +28,10 @@ const createSchema = z.object({
   pausaCortaMin: z.number().int().optional(),
   pausaCortaMax: z.number().int().optional(),
   umbralErroresConsecutivos: z.number().int().optional(),
+  plataforma: z.enum(["pam", "mooney"]).nullable().optional(),
+  templateNombre: z.string().nullable().optional(),
+  campaignId: z.string().nullable().optional(),
+  campaignNombre: z.string().nullable().optional(),
 });
 
 const patchSchema = createSchema.partial().omit({ id: true });

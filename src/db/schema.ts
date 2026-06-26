@@ -50,6 +50,13 @@ export const bmConfig = pgTable("bm_config", {
   pausaCortaMin: integer("pausa_corta_min").notNull().default(5),
   pausaCortaMax: integer("pausa_corta_max").notNull().default(10),
 
+  // Metadatos para el export de trazabilidad (plantilla_envio.csv).
+  // Si quedan en null, el export cae a valores derivados (id/nombre) o defaults.
+  plataforma: text("plataforma"), // "pam" | "mooney"
+  templateNombre: text("template_nombre"), // nombre de la plantilla Meta
+  campaignId: text("campaign_id"), // campaign_id_externo estable
+  campaignNombre: text("campaign_nombre"),
+
   ultimoEnvio: timestamp("ultimo_envio", { withTimezone: true }),
   proximoTickAt: timestamp("proximo_tick_at", { withTimezone: true }),
   pausadoHasta: timestamp("pausado_hasta", { withTimezone: true }),
@@ -69,6 +76,9 @@ export const logMovimientos = pgTable("log_movimientos", {
   ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
   bmId: text("bm_id").notNull(),
   leadId: bigint("lead_id", { mode: "number" }),
+  // Teléfono del lead en E.164, capturado al mover a envío (clave de cruce
+  // para la trazabilidad). Null si no se pudo resolver desde Kommo.
+  telefono: text("telefono"),
   // movido_a_envio | resultado_si | resultado_no | resultado_error | pausa_bm
   accion: text("accion").notNull(),
   // ok | error_3132 | sin_leads

@@ -79,6 +79,9 @@ async function tick(bmId: string) {
   enVuelo.add(lead.id);
 
   try {
+    // Capturamos el teléfono (clave de cruce para trazabilidad) antes de mover.
+    // Best-effort: si falla, seguimos el envío igual con teléfono null.
+    const telefono = await kommo.getTelefono(lead.id).catch(() => null);
     await kommo.moveLead(lead.id, bm.pipelineId, bm.stageDestinoId);
     await registrarMovimiento({
       bmId: bm.id,
@@ -86,6 +89,7 @@ async function tick(bmId: string) {
       accion: "movido_a_envio",
       resultado: "ok",
       etapaDestino: bm.stageDestinoId,
+      telefono,
     });
     await patchBm(bm.id, {
       enviadosHoy: bm.enviadosHoy + 1,

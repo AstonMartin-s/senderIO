@@ -9,7 +9,7 @@ import {
 } from "../api";
 import { Card } from "../components/ui";
 import { IconDownload } from "../components/icons";
-import { clockHHmm } from "../lib/format";
+import { clockHHmmss, dayDM } from "../lib/format";
 
 const accionMeta: Record<string, { label: string; cls: string }> = {
   movido_a_envio: { label: "Movido a envío", cls: "bg-brand-500/12 text-brand-600 dark:text-brand-300" },
@@ -116,7 +116,14 @@ export default function LogView() {
               href={api.movimientosCsvUrl(filtro)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 text-xs font-medium text-fg ring-1 ring-line-strong transition-all hover:bg-surface-2"
             >
-              <IconDownload className="h-3.5 w-3.5" /> Descargar CSV
+              <IconDownload className="h-3.5 w-3.5" /> CSV
+            </a>
+            <a
+              href={api.trazabilidadCsvUrl(filtro)}
+              title="Export en el formato del contrato de trazabilidad (plantilla_envio): una fila por envío con teléfono, estado y timestamps."
+              className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white shadow-sm shadow-brand-500/30 transition-all hover:bg-brand-600 active:scale-[0.97]"
+            >
+              <IconDownload className="h-3.5 w-3.5" /> CSV para trazabilidad
             </a>
           </div>
         </div>
@@ -124,7 +131,7 @@ export default function LogView() {
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface/90 backdrop-blur">
               <tr className="text-left text-[11px] uppercase tracking-wider text-faint">
-                <th className="px-5 py-2.5 font-medium">Hora</th>
+                <th className="px-5 py-2.5 font-medium">Fecha · Hora</th>
                 <th className="px-2 py-2.5 font-medium">BM</th>
                 <th className="px-2 py-2.5 font-medium">Acción</th>
                 <th className="px-2 py-2.5 font-medium">Lead</th>
@@ -139,8 +146,9 @@ export default function LogView() {
                 };
                 return (
                   <tr key={m.id} className="transition-colors hover:bg-surface-2">
-                    <td className="w-20 px-5 py-3 tabular-nums text-faint">
-                      {clockHHmm(m.ts)}
+                    <td className="whitespace-nowrap px-5 py-3 tabular-nums">
+                      <span className="text-faint">{dayDM(m.ts)}</span>
+                      <span className="ml-2 text-muted">{clockHHmmss(m.ts)}</span>
                     </td>
                     <td className="w-16 px-2 py-3 font-semibold text-fg">
                       {m.bmId}

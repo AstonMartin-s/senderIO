@@ -4,6 +4,18 @@ import type {
   KommoPipeline,
 } from "./types.js";
 
+/**
+ * Normaliza un teléfono a E.164 (`+` + dígitos, sin espacios ni guiones).
+ * Si no hay un `+` explícito y parece un número argentino, antepone `+`.
+ * Devuelve null si no queda nada utilizable.
+ */
+function normalizarE164(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = String(raw).replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  return `+${digits}`;
+}
+
 export class RealKommoClient implements KommoClient {
   private base: string;
   private token: string;
@@ -74,6 +86,36 @@ export class RealKommoClient implements KommoClient {
   ): Promise<number> {
     const leads = await this.getLeads(pipelineId, statusId, limit);
     return leads.length;
+  }
+
+  async getTelefono(leadId: number): Promise<string | null> {
+    try {
+      const res = await this.req(`/leads/${leadId}?with=contacts`);
+      if (res.status === 204) return null;
+      const lead = (await res.json()) as {
+        _embedded?: { contacts?: Array<{ id: number; is_main?: boolean }> };
+      };
+      const contacts = lead._embedded?.contacts ?? [];
+      if (contacts.length === 0) return null;
+      const main = contacts.find((c) => c.is_main) ?? contacts[0];
+
+      const cRes = await this.req(`/contacts/${main.id}`);
+      if (cRes.status === 204) return null;
+      const contact = (await cRes.json()) as {
+        custom_fields_values?: Array<{
+          field_code?: string;
+          values?: Array<{ value?: string }>;
+        }> | null;
+      };
+      const phoneField = (contact.custom_fields_values ?? []).find(
+        (f) => f.field_code === "PHONE"
+      );
+      const raw = phoneField?.values?.[0]?.value;
+      return normalizarE164(raw);
+    } catch (err) {
+      console.error(`[kommo] no se pudo resolver teléfono de ${leadId}:`, err);
+      return null;
+    }
   }
 
   async listPipelines(): Promise<KommoPipeline[]> {

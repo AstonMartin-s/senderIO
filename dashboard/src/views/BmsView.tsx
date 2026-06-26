@@ -273,6 +273,10 @@ function BmModal({
     pausaCortaMin: String(bm?.pausaCortaMin ?? 5),
     pausaCortaMax: String(bm?.pausaCortaMax ?? 10),
     umbralErroresConsecutivos: String(bm?.umbralErroresConsecutivos ?? 5),
+    plataforma: bm?.plataforma ?? "",
+    templateNombre: bm?.templateNombre ?? "",
+    campaignId: bm?.campaignId ?? "",
+    campaignNombre: bm?.campaignNombre ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -302,6 +306,10 @@ function BmModal({
       pausaCortaMin: Number(form.pausaCortaMin),
       pausaCortaMax: Number(form.pausaCortaMax),
       umbralErroresConsecutivos: Number(form.umbralErroresConsecutivos),
+      plataforma: form.plataforma ? form.plataforma : null,
+      templateNombre: form.templateNombre || null,
+      campaignId: form.campaignId || null,
+      campaignNombre: form.campaignNombre || null,
     };
     try {
       if (isNew) {
@@ -363,6 +371,28 @@ function BmModal({
               <Field label="Umbral racha error" value={form.umbralErroresConsecutivos} onChange={(v) => set("umbralErroresConsecutivos", v)} />
               <Field label="Pausa corta mín (min)" value={form.pausaCortaMin} onChange={(v) => set("pausaCortaMin", v)} />
               <Field label="Pausa corta máx (min)" value={form.pausaCortaMax} onChange={(v) => set("pausaCortaMax", v)} />
+            </div>
+          </Section>
+
+          <Section title="Trazabilidad (export CSV)">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted">
+                  Plataforma
+                </span>
+                <select
+                  value={form.plataforma}
+                  onChange={(e) => set("plataforma", e.target.value)}
+                  className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+                >
+                  <option value="">— (default: mooney)</option>
+                  <option value="mooney">mooney</option>
+                  <option value="pam">pam</option>
+                </select>
+              </label>
+              <Field label="Plantilla Meta (template_nombre)" value={form.templateNombre} onChange={(v) => set("templateNombre", v)} placeholder="reactivacion_bono_v2" />
+              <Field label="campaign_id_externo" value={form.campaignId} onChange={(v) => set("campaignId", v)} placeholder={`default: ${bm?.id ?? "ID del BM"}`} />
+              <Field label="campaign_nombre" value={form.campaignNombre} onChange={(v) => set("campaignNombre", v)} placeholder="default: nombre del BM" />
             </div>
           </Section>
 

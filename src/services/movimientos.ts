@@ -16,6 +16,7 @@ export async function registrarMovimiento(params: {
   accion: Accion;
   resultado?: Resultado;
   etapaDestino?: number | null;
+  telefono?: string | null;
 }): Promise<void> {
   await db.insert(logMovimientos).values({
     bmId: params.bmId,
@@ -23,5 +24,6 @@ export async function registrarMovimiento(params: {
     accion: params.accion,
     resultado: params.resultado ?? null,
     etapaDestino: params.etapaDestino ?? null,
+    telefono: params.telefono ?? null,
   });
 }

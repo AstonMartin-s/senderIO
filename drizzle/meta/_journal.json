@@ -15,6 +15,13 @@
       "when": 1782440058580,
       "tag": "0001_narrow_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782442385674,
+      "tag": "0002_lively_wallflower",
+      "breakpoints": true
     }
   ]
 }

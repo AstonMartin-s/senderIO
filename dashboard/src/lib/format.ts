@@ -31,6 +31,28 @@ export function clockHHmm(iso: string | null): string {
   });
 }
 
+/** Hora con segundos en formato 24h (HH:MM:SS), zona Argentina. */
+export function clockHHmmss(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("es-AR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "America/Argentina/Cordoba",
+  });
+}
+
+/** Fecha corta DD/MM, zona Argentina. */
+export function dayDM(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Argentina/Cordoba",
+  });
+}
+
 export type Estado = "activo" | "alerta" | "pausado" | "inactivo";
 
 export function estadoBm(bm: Bm): Estado {
