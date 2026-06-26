@@ -88,19 +88,27 @@ export class RealKommoClient implements KommoClient {
     return leads.length;
   }
 
-  async getTelefono(leadId: number): Promise<string | null> {
+  async getLeadMeta(
+    leadId: number
+  ): Promise<{ telefono: string | null; segmento: string | null }> {
     try {
       const res = await this.req(`/leads/${leadId}?with=contacts`);
-      if (res.status === 204) return null;
+      if (res.status === 204) return { telefono: null, segmento: null };
       const lead = (await res.json()) as {
-        _embedded?: { contacts?: Array<{ id: number; is_main?: boolean }> };
+        _embedded?: {
+          contacts?: Array<{ id: number; is_main?: boolean }>;
+          tags?: Array<{ name?: string }>;
+        };
       };
+      // Segmento: primera etiqueta del lead (ej. "Lista12").
+      const segmento = lead._embedded?.tags?.[0]?.name ?? null;
+
       const contacts = lead._embedded?.contacts ?? [];
-      if (contacts.length === 0) return null;
+      if (contacts.length === 0) return { telefono: null, segmento };
       const main = contacts.find((c) => c.is_main) ?? contacts[0];
 
       const cRes = await this.req(`/contacts/${main.id}`);
-      if (cRes.status === 204) return null;
+      if (cRes.status === 204) return { telefono: null, segmento };
       const contact = (await cRes.json()) as {
         custom_fields_values?: Array<{
           field_code?: string;
@@ -110,11 +118,11 @@ export class RealKommoClient implements KommoClient {
       const phoneField = (contact.custom_fields_values ?? []).find(
         (f) => f.field_code === "PHONE"
       );
-      const raw = phoneField?.values?.[0]?.value;
-      return normalizarE164(raw);
+      const telefono = normalizarE164(phoneField?.values?.[0]?.value);
+      return { telefono, segmento };
     } catch (err) {
-      console.error(`[kommo] no se pudo resolver teléfono de ${leadId}:`, err);
-      return null;
+      console.error(`[kommo] no se pudo resolver meta de ${leadId}:`, err);
+      return { telefono: null, segmento: null };
     }
   }
 

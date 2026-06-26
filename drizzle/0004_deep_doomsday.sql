@@ -1,0 +1,1 @@
+ALTER TABLE "log_movimientos" ADD COLUMN "segmento" text;

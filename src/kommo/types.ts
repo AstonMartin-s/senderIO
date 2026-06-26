@@ -35,10 +35,13 @@ export interface KommoClient {
   ): Promise<number>;
 
   /**
-   * Devuelve el teléfono (E.164) del contacto principal del lead, o null si no
-   * se puede resolver. Best-effort: no debe frenar el envío si falla.
+   * Devuelve metadatos del lead para trazabilidad: teléfono (E.164) del contacto
+   * principal y segmento (primera etiqueta del lead). Best-effort: no debe
+   * frenar el envío si falla (devuelve null en los campos que no resuelva).
    */
-  getTelefono(leadId: number): Promise<string | null>;
+  getLeadMeta(
+    leadId: number
+  ): Promise<{ telefono: string | null; segmento: string | null }>;
 
   /** Lista pipelines y etapas (para el alta de BMs en el panel). */
   listPipelines(): Promise<KommoPipeline[]>;

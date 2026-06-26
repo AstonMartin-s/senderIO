@@ -20,6 +20,11 @@ const csvEsc = (v: unknown) => {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+// Costo fijo por mensaje de Marketing-lite, derivado de pmp_metrics
+// (≈ 6,18 $ cada 100 mensajes). Se cobra sobre envíos entregados (no failed).
+const COSTO_POR_MENSAJE = "0.0618";
+const MONEDA = "USD";
+
 export async function kpiRoutes(app: FastifyInstance) {
   // KPIs históricos archivados.
   app.get("/api/kpis", async (req) => {
@@ -137,6 +142,7 @@ export async function kpiRoutes(app: FastifyInstance) {
       leadId: number;
       tsEnviado: Date | null;
       telefono: string | null;
+      segmento: string | null;
       resultado: "si" | "no" | "error" | null;
       tsResultado: Date | null;
     };
@@ -151,6 +157,7 @@ export async function kpiRoutes(app: FastifyInstance) {
           leadId: r.leadId,
           tsEnviado: null,
           telefono: null,
+          segmento: null,
           resultado: null,
           tsResultado: null,
         };
@@ -160,6 +167,7 @@ export async function kpiRoutes(app: FastifyInstance) {
       if (r.accion === "movido_a_envio") {
         if (!g.tsEnviado) g.tsEnviado = ts;
         if (r.telefono) g.telefono = r.telefono;
+        if (r.segmento) g.segmento = r.segmento;
       } else if (r.accion === "resultado_si") {
         g.resultado = "si";
         g.tsResultado = ts;
@@ -213,18 +221,18 @@ export async function kpiRoutes(app: FastifyInstance) {
           bm?.templateNombre ?? "", // template_nombre
           g.telefono ?? "", // telefono (clave de cruce)
           fuente === "crm" ? "true" : "false", // es_interno (derivado del origen)
-          "", // segmento
+          g.segmento ?? "", // segmento (etiqueta/lista del lead)
           `senderio:${g.bmId}:${g.leadId}`, // message_id (surrogate estable)
           toIsoAr(g.tsEnviado), // ts_enviado
-          "", // ts_entregado (no disponible)
+          "", // ts_entregado (no disponible: requiere webhook de delivery)
           respondio ? toIsoAr(g.tsResultado) : "", // ts_leido
           tsResp, // ts_primera_respuesta
           estadoFinal, // estado_final
           fallo ? "3132" : "", // error_codigo
           fallo ? "Error de envío (3132)" : "", // error_motivo
-          "", // conversacion_id
-          "", // costo
-          "", // moneda
+          g.leadId, // conversacion_id = Lead ID de Kommo
+          fallo ? "" : COSTO_POR_MENSAJE, // costo (solo si no falló)
+          fallo ? "" : MONEDA, // moneda
         ]
           .map(csvEsc)
           .join(",");

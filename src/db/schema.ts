@@ -81,6 +81,8 @@ export const logMovimientos = pgTable("log_movimientos", {
   // Teléfono del lead en E.164, capturado al mover a envío (clave de cruce
   // para la trazabilidad). Null si no se pudo resolver desde Kommo.
   telefono: text("telefono"),
+  // Etiqueta/lista del lead en Kommo (ej. "Lista12"), capturada al enviar.
+  segmento: text("segmento"),
   // movido_a_envio | resultado_si | resultado_no | resultado_error | pausa_bm
   accion: text("accion").notNull(),
   // ok | error_3132 | sin_leads
