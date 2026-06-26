@@ -260,6 +260,7 @@ function BmModal({
     nombre: bm?.nombre ?? "",
     pipelineId: String(bm?.pipelineId ?? ""),
     stageOrigenId: String(bm?.stageOrigenId ?? ""),
+    stageOrigenPipelineId: String(bm?.stageOrigenPipelineId ?? ""),
     stageDestinoId: String(bm?.stageDestinoId ?? ""),
     stageErrorId: String(bm?.stageErrorId ?? ""),
     stageSiId: String(bm?.stageSiId ?? ""),
@@ -288,6 +289,7 @@ function BmModal({
       nombre: form.nombre,
       pipelineId: Number(form.pipelineId),
       stageOrigenId: Number(form.stageOrigenId),
+      stageOrigenPipelineId: num(form.stageOrigenPipelineId),
       stageDestinoId: Number(form.stageDestinoId),
       stageErrorId: Number(form.stageErrorId),
       stageSiId: num(form.stageSiId),
@@ -343,6 +345,7 @@ function BmModal({
               <Field label="Nombre" value={form.nombre} onChange={(v) => set("nombre", v)} />
               <Field label="pipeline_id" value={form.pipelineId} onChange={(v) => set("pipelineId", v)} />
               <Field label="stage_origen" value={form.stageOrigenId} onChange={(v) => set("stageOrigenId", v)} />
+              <Field label="pipeline del origen (opcional)" value={form.stageOrigenPipelineId} onChange={(v) => set("stageOrigenPipelineId", v)} placeholder="si la base vive en otro pipeline" />
               <Field label="stage_destino (envío)" value={form.stageDestinoId} onChange={(v) => set("stageDestinoId", v)} />
               <Field label="stage_error" value={form.stageErrorId} onChange={(v) => set("stageErrorId", v)} />
               <Field label="stage_si" value={form.stageSiId} onChange={(v) => set("stageSiId", v)} />

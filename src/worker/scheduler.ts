@@ -61,7 +61,9 @@ async function tick(bmId: string) {
   }
 
   const kommo = getKommoClient();
-  const lead = await kommo.getFirstLeadInStage(bm.pipelineId, bm.stageOrigenId);
+  // La etapa de origen puede vivir en otro pipeline (base general compartida).
+  const origenPipeline = bm.stageOrigenPipelineId ?? bm.pipelineId;
+  const lead = await kommo.getFirstLeadInStage(origenPipeline, bm.stageOrigenId);
 
   if (!lead) {
     // Sin leads: no consume límite, reintenta en el próximo ciclo.

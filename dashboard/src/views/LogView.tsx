@@ -1,5 +1,12 @@
-import { useEffect, useState } from "react";
-import { api, usePolling, type Bm, type KpiFila, type Movimiento } from "../api";
+import { useEffect, useMemo, useState } from "react";
+import {
+  api,
+  usePolling,
+  type Bm,
+  type KpiFila,
+  type LogFiltro,
+  type Movimiento,
+} from "../api";
 import { Card } from "../components/ui";
 import { IconDownload } from "../components/icons";
 import { clockHHmm } from "../lib/format";
@@ -14,16 +21,28 @@ const accionMeta: Record<string, { label: string; cls: string }> = {
 
 export default function LogView() {
   const [bm, setBm] = useState<string>("");
+  const [desde, setDesde] = useState<string>("");
+  const [hasta, setHasta] = useState<string>("");
+
+  const filtro = useMemo<LogFiltro>(
+    () => ({
+      bm: bm || undefined,
+      desde: desde ? `${desde}T00:00:00` : undefined,
+      hasta: hasta ? `${hasta}T23:59:59` : undefined,
+    }),
+    [bm, desde, hasta]
+  );
+
   const bmsQ = usePolling<Bm[]>(api.bms, 10000);
   const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 4000);
   const { data, refresh } = usePolling<Movimiento[]>(
-    () => api.movimientos(200, bm || undefined),
+    () => api.movimientos(500, filtro),
     3000
   );
-  // Refrescá al instante cuando cambia el filtro (sin esperar al próximo poll).
+  // Refrescá al instante cuando cambia algún filtro (sin esperar al próximo poll).
   useEffect(() => {
     refresh();
-  }, [bm, refresh]);
+  }, [filtro, refresh]);
 
   const rows = data ?? [];
   const bms = bmsQ.data ?? [];
@@ -53,7 +72,7 @@ export default function LogView() {
               en vivo
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
               value={bm}
               onChange={(e) => setBm(e.target.value)}
@@ -66,8 +85,35 @@ export default function LogView() {
                 </option>
               ))}
             </select>
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              title="Desde"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            />
+            <span className="text-xs text-slate-400">→</span>
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              title="Hasta"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
+            />
+            {(desde || hasta || bm) && (
+              <button
+                onClick={() => {
+                  setBm("");
+                  setDesde("");
+                  setHasta("");
+                }}
+                className="rounded-lg px-2 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+              >
+                Limpiar
+              </button>
+            )}
             <a
-              href={api.movimientosCsvUrl(bm || undefined)}
+              href={api.movimientosCsvUrl(filtro)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200 transition-all hover:bg-slate-50"
             >
               <IconDownload className="h-3.5 w-3.5" /> Descargar CSV

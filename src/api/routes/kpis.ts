@@ -20,16 +20,23 @@ export async function kpiRoutes(app: FastifyInstance) {
 
   // Log de movimientos en vivo.
   app.get("/api/movimientos", async (req) => {
-    const q = req.query as { bm?: string; limit?: string };
-    const limit = Math.min(Number(q.limit ?? 50), 500);
-    const base = db.select().from(logMovimientos);
-    const rows = q.bm
-      ? await base
-          .where(eq(logMovimientos.bmId, q.bm))
-          .orderBy(desc(logMovimientos.ts))
-          .limit(limit)
-      : await base.orderBy(desc(logMovimientos.ts)).limit(limit);
-    return rows;
+    const q = req.query as {
+      bm?: string;
+      limit?: string;
+      desde?: string;
+      hasta?: string;
+    };
+    const limit = Math.min(Number(q.limit ?? 50), 1000);
+    const conds = [];
+    if (q.bm) conds.push(eq(logMovimientos.bmId, q.bm));
+    if (q.desde) conds.push(gte(logMovimientos.ts, new Date(q.desde)));
+    if (q.hasta) conds.push(lte(logMovimientos.ts, new Date(q.hasta)));
+    return db
+      .select()
+      .from(logMovimientos)
+      .where(conds.length ? and(...conds) : undefined)
+      .orderBy(desc(logMovimientos.ts))
+      .limit(limit);
   });
 
   // Export CSV del historial de movimientos (estilo planilla del n8n).

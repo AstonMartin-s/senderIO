@@ -5,6 +5,7 @@ export interface Bm {
   nombre: string;
   pipelineId: number;
   stageOrigenId: number;
+  stageOrigenPipelineId: number | null;
   stageDestinoId: number;
   stageErrorId: number;
   stageSiId: number | null;
@@ -82,14 +83,26 @@ export const api = {
     req<Bm>(`/api/bms/${id}/reset-contadores`, { method: "POST" }),
   resetDiario: () => req<unknown>("/api/reset-diario", { method: "POST" }),
   kpisHoy: () => req<KpiFila[]>("/api/kpis/hoy"),
-  movimientos: (limit = 60, bm?: string) =>
-    req<Movimiento[]>(
-      `/api/movimientos?limit=${limit}${bm ? `&bm=${encodeURIComponent(bm)}` : ""}`
-    ),
+  movimientos: (limit = 60, f: LogFiltro = {}) =>
+    req<Movimiento[]>(`/api/movimientos?limit=${limit}${filtroQS(f)}`),
   /** URL de descarga directa del CSV (lo sirve el backend con Content-Disposition). */
-  movimientosCsvUrl: (bm?: string) =>
-    `/api/movimientos.csv${bm ? `?bm=${encodeURIComponent(bm)}` : ""}`,
+  movimientosCsvUrl: (f: LogFiltro = {}) =>
+    `/api/movimientos.csv?${filtroQS(f).replace(/^&/, "")}`,
 };
+
+export interface LogFiltro {
+  bm?: string;
+  desde?: string; // ISO local, ej "2026-06-25T00:00:00"
+  hasta?: string;
+}
+
+function filtroQS(f: LogFiltro): string {
+  const p: string[] = [];
+  if (f.bm) p.push(`bm=${encodeURIComponent(f.bm)}`);
+  if (f.desde) p.push(`desde=${encodeURIComponent(f.desde)}`);
+  if (f.hasta) p.push(`hasta=${encodeURIComponent(f.hasta)}`);
+  return p.length ? `&${p.join("&")}` : "";
+}
 
 /** Polling con refresco manual y soporte para updates optimistas (mutate). */
 export function usePolling<T>(

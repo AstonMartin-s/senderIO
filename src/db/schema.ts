@@ -22,6 +22,10 @@ export const bmConfig = pgTable("bm_config", {
 
   pipelineId: bigint("pipeline_id", { mode: "number" }).notNull(),
   stageOrigenId: bigint("stage_origen_id", { mode: "number" }).notNull(),
+  // Pipeline donde vive la etapa de origen. Permite una "base general" compartida
+  // que físicamente pertenece a otro pipeline (p.ej. varios BMs toman de 106401855).
+  // Si es null, se asume el mismo pipelineId del BM.
+  stageOrigenPipelineId: bigint("stage_origen_pipeline_id", { mode: "number" }),
   stageDestinoId: bigint("stage_destino_id", { mode: "number" }).notNull(),
   stageErrorId: bigint("stage_error_id", { mode: "number" }).notNull(),
   stageSiId: bigint("stage_si_id", { mode: "number" }),

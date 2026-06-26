@@ -1,0 +1,1 @@
+ALTER TABLE "bm_config" ADD COLUMN "stage_origen_pipeline_id" bigint;

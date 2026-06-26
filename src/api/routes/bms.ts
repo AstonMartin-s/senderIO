@@ -14,6 +14,7 @@ const createSchema = z.object({
   nombre: z.string().optional(),
   pipelineId: z.number().int(),
   stageOrigenId: z.number().int(),
+  stageOrigenPipelineId: z.number().int().nullable().optional(),
   stageDestinoId: z.number().int(),
   stageErrorId: z.number().int(),
   stageSiId: z.number().int().nullable().optional(),
