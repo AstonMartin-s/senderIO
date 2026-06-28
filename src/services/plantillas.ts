@@ -145,15 +145,20 @@ export async function crearEnKommo(id: number): Promise<Plantilla> {
   // y NUNCA llega a Meta. Detectamos eso y cortamos con un error claro en vez de
   // reportar un falso "En revisión".
   if (!creada.wabaIds || creada.wabaIds.length === 0) {
-    await patchPlantilla(id, {
-      kommoTemplateId: creada.id,
-      wabaId,
-      estado: "borrador",
-      rejectReason: `Kommo no vinculó el WABA ${wabaId} a este número. Verificá que ese WABA id sea el que Kommo tiene conectado para el BM (la cuenta nueva puede usar otro id).`,
-    });
-    throw new Error(
-      `Kommo creó la plantilla pero no la asoció al WABA ${wabaId} (quedó en Borrador). Revisá el WABA id del BM.`
-    );
+    // La API pública de Kommo NO permite asignar el WABA al crear plantillas
+    // (ignora waba_selected_waba_ids y la deja no editable), así que nunca llega
+    // a Meta. El camino soportado es crearla en la UI de Kommo (eligiendo la
+    // cuenta) y después importarla a SenderIO.
+    const msg =
+      "Kommo no permite asignar el WABA al crear plantillas por API: queda en Borrador y no llega a Meta. " +
+      "Creá la plantilla en Kommo (seleccionando la cuenta de WhatsApp) y después usá “Importar de Kommo”.";
+    // Intentamos borrar el borrador huérfano que dejó Kommo para no ensuciar.
+    try {
+      await kommo.deleteTemplate?.(creada.id);
+    } catch {
+      /* best-effort */
+    }
+    throw new Error(msg);
   }
 
   const review = await kommo.submitTemplateForReview(creada.id);

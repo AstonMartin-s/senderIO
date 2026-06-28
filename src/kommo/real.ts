@@ -329,6 +329,10 @@ export class RealKommoClient implements KommoClient {
     return mapTemplate(creada);
   }
 
+  async deleteTemplate(id: number): Promise<void> {
+    await this.req(`/chats/templates/${id}`, { method: "DELETE" });
+  }
+
   async submitTemplateForReview(id: number): Promise<KommoTemplateReview> {
     const res = await this.req(`/chats/templates/${id}/review`, {
       method: "POST",

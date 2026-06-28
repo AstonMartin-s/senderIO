@@ -146,6 +146,10 @@ export class MockKommoClient implements KommoClient {
     };
   }
 
+  async deleteTemplate(_id: number): Promise<void> {
+    return;
+  }
+
   async submitTemplateForReview(_id: number): Promise<KommoTemplateReview> {
     return { status: "review" };
   }

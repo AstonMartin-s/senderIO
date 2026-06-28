@@ -144,4 +144,7 @@ export interface KommoClient {
    * (approved | review | paused | rejected | ...) y el motivo de rechazo si aplica.
    */
   getTemplateReview(id: number): Promise<KommoTemplateReview>;
+
+  /** Borra una plantilla en Kommo (DELETE /chats/templates/{id}). */
+  deleteTemplate(id: number): Promise<void>;
 }
