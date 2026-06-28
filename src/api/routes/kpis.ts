@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { bmConfig, logMovimientos } from "../../db/schema.js";
+import { bmConfig, logMovimientos, plantillas } from "../../db/schema.js";
 import { getKpis, computeSnapshot, computeRange } from "../../services/kpis.js";
 import { getKommoClient } from "../../kommo/index.js";
 import { todayLocal } from "../../lib/time.js";
@@ -126,15 +126,25 @@ export async function kpiRoutes(app: FastifyInstance) {
     if (q.desde) conds.push(gte(logMovimientos.ts, new Date(q.desde)));
     if (q.hasta) conds.push(lte(logMovimientos.ts, new Date(q.hasta)));
 
-    const [rows, bms] = await Promise.all([
+    const [rows, bms, plts] = await Promise.all([
       db
         .select()
         .from(logMovimientos)
         .where(conds.length ? and(...conds) : undefined)
         .orderBy(asc(logMovimientos.ts)),
       db.select().from(bmConfig),
+      db.select().from(plantillas),
     ]);
     const bmById = new Map(bms.map((b) => [b.id, b]));
+    // Mapa para resolver la plantilla efectivamente enviada: el bot estampa el
+    // `valorEstampado` en el lead, que la reconciliación copia a log.plantilla.
+    // Cruzamos por (bmId :: valorEstampado) y, como respaldo, por (bmId :: nombre).
+    const plBy = new Map<string, { nombre: string; contenido: string }>();
+    for (const p of plts) {
+      const v = { nombre: p.nombre, contenido: p.contenido };
+      if (p.valorEstampado) plBy.set(`${p.bmId}::${p.valorEstampado}`, v);
+      plBy.set(`${p.bmId}::${p.nombre}`, v);
+    }
 
     // Agrupar por (bm, lead): el envío + su resultado posterior.
     type Agg = {
@@ -189,7 +199,6 @@ export async function kpiRoutes(app: FastifyInstance) {
       "campaign_id_externo",
       "campaign_nombre",
       "template_nombre",
-      "mensaje_texto",
       "telefono",
       "es_interno",
       "segmento",
@@ -217,19 +226,21 @@ export async function kpiRoutes(app: FastifyInstance) {
         const estadoFinal = fallo ? "failed" : respondio ? "read" : "sent";
         const tsResp = respondio ? toIsoAr(g.tsResultado) : "";
         const fuente = bm?.fuenteEnvio ?? "crm";
+        // Plantilla enviada (cargada en la sección Plantillas), cruzada por lo
+        // que el bot estampó en el lead.
+        const pl = g.plantilla ? plBy.get(`${g.bmId}::${g.plantilla}`) : undefined;
         return [
           fuente, // fuente_envio (crm interna | spam externa)
           bm?.plataforma ?? "mooney", // plataforma
           bm?.campaignId ?? g.bmId, // campaign_id_externo
           bm?.campaignNombre ?? bm?.nombre ?? g.bmId, // campaign_nombre
-          g.plantilla ?? bm?.templateNombre ?? "", // template_nombre (plantilla real por envío; fallback a config del BM)
-          bm?.mensajeTexto ?? "", // mensaje_texto (cuerpo de la plantilla enviada)
+          pl?.nombre ?? g.plantilla ?? "", // template_nombre (nombre de la plantilla enviada)
           g.telefono ?? "", // telefono (clave de cruce)
           fuente === "crm" ? "true" : "false", // es_interno (derivado del origen)
           g.segmento ?? "", // segmento (etiqueta/lista del lead)
           `senderio:${g.bmId}:${g.leadId}`, // message_id (surrogate estable)
           toIsoAr(g.tsEnviado), // ts_enviado
-          "", // ts_entregado (no disponible: requiere webhook de delivery)
+          pl?.contenido ?? "", // ts_entregado := texto/cuerpo de la plantilla (definido así por el contrato de trazabilidad)
           respondio ? toIsoAr(g.tsResultado) : "", // ts_leido
           tsResp, // ts_primera_respuesta
           estadoFinal, // estado_final

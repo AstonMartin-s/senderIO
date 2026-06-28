@@ -6,8 +6,18 @@ import {
   createBm,
   patchBm,
   deleteBm,
+  altaAutomatica,
+  siguienteIdBm,
 } from "../../services/bm.js";
+import { generarBot } from "../../services/salesbot.js";
 import { notifyBmChanged } from "../../db/notify.js";
+
+const altaSchema = z.object({
+  nombre: z.string().min(1),
+  wabaId: z.string().nullable().optional(),
+  chatSourceId: z.number().int().nullable().optional(),
+  id: z.string().optional(),
+});
 
 const createSchema = z.object({
   id: z.string().min(1),
@@ -34,6 +44,9 @@ const createSchema = z.object({
   mensajeTexto: z.string().nullable().optional(),
   campaignId: z.string().nullable().optional(),
   campaignNombre: z.string().nullable().optional(),
+  wabaId: z.string().nullable().optional(),
+  chatSourceId: z.number().int().nullable().optional(),
+  botListo: z.boolean().optional(),
 });
 
 const patchSchema = createSchema.partial().omit({ id: true });
@@ -46,6 +59,24 @@ export async function bmRoutes(app: FastifyInstance) {
     const bm = await getBm(id);
     if (!bm) return reply.code(404).send({ error: "no existe" });
     return bm;
+  });
+
+  // Próximo id sugerido (BMn) para el alta.
+  app.get("/api/bms/siguiente-id", async () => ({ id: await siguienteIdBm() }));
+
+  // Alta automática: crea pipeline+etapas en Kommo y arma el bm_config.
+  app.post("/api/bms/alta", async (req, reply) => {
+    const parsed = altaSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+    try {
+      const bm = await altaAutomatica(parsed.data);
+      await notifyBmChanged(bm.id);
+      return reply.code(201).send(bm);
+    } catch (e) {
+      return reply.code(400).send({ error: (e as Error).message });
+    }
   });
 
   app.post("/api/bms", async (req, reply) => {
@@ -64,10 +95,25 @@ export async function bmRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const bm = await patchBm(id, parsed.data);
+    const data = { ...parsed.data };
+    // Sella la marca temporal cuando se confirma el bot.
+    if (data.botListo === true) {
+      (data as Record<string, unknown>).botListoAt = new Date();
+    }
+    const bm = await patchBm(id, data);
     if (!bm) return reply.code(404).send({ error: "no existe" });
     await notifyBmChanged(id);
     return bm;
+  });
+
+  // Genera el JSON del Salesbot del BM (clonando el molde con sus IDs).
+  app.post("/api/bms/:id/generar-bot", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      return await generarBot(id);
+    } catch (e) {
+      return reply.code(400).send({ error: (e as Error).message });
+    }
   });
 
   app.delete("/api/bms/:id", async (req, reply) => {

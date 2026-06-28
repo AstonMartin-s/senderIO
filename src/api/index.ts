@@ -10,6 +10,7 @@ import { webhookRoutes } from "./routes/webhook.js";
 import { bmRoutes } from "./routes/bms.js";
 import { controlRoutes } from "./routes/control.js";
 import { kpiRoutes } from "./routes/kpis.js";
+import { plantillaRoutes } from "./routes/plantillas.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dashboardDist = join(__dirname, "../../dashboard/dist");
@@ -28,6 +29,7 @@ async function build() {
   await app.register(bmRoutes);
   await app.register(controlRoutes);
   await app.register(kpiRoutes);
+  await app.register(plantillaRoutes);
 
   // Sirve el dashboard compilado (si existe el build). En dev se usa Vite.
   if (existsSync(dashboardDist)) {

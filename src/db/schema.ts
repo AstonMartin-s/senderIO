@@ -66,6 +66,19 @@ export const bmConfig = pgTable("bm_config", {
   campaignId: text("campaign_id"), // campaign_id_externo estable
   campaignNombre: text("campaign_nombre"),
 
+  // Datos del número conectado en Kommo (inputs manuales del alta, Decisión 1):
+  // WABA id (waba_selected_waba_ids de las plantillas) y chat_source id (canal del bot).
+  wabaId: text("waba_id"),
+  chatSourceId: bigint("chat_source_id", { mode: "number" }),
+
+  // El usuario confirma manualmente que importó el Salesbot generado en Kommo
+  // (el bot no tiene API pública: se importa a mano).
+  botListo: boolean("bot_listo").notNull().default(false),
+  botListoAt: timestamp("bot_listo_at", { withTimezone: true }),
+
+  // Contador round-robin para rotar plantillas (avanza con cada envío).
+  rotacionIdx: integer("rotacion_idx").notNull().default(0),
+
   ultimoEnvio: timestamp("ultimo_envio", { withTimezone: true }),
   proximoTickAt: timestamp("proximo_tick_at", { withTimezone: true }),
   pausadoHasta: timestamp("pausado_hasta", { withTimezone: true }),
@@ -102,6 +115,42 @@ export const logMovimientos = pgTable("log_movimientos", {
 });
 
 /**
+ * plantillas: plantillas WABA por BM. Cada plantilla es una "rama" del bot con
+ * un switch ON/OFF (`activo`): las activas rotan en el envío, las inactivas el
+ * bot no las usa. Se crean en Kommo y se mandan a moderación de Meta.
+ */
+export const plantillas = pgTable("plantillas", {
+  id: bigserial("id", { mode: "number" }).primaryKey(),
+  bmId: text("bm_id").notNull(),
+  nombre: text("nombre").notNull(),
+  // ID que devuelve Kommo al crearla; null mientras está solo local.
+  kommoTemplateId: bigint("kommo_template_id", { mode: "number" }),
+  wabaId: text("waba_id"), // waba_selected_waba_ids (default: el del BM)
+  categoria: text("categoria").notNull().default("MARKETING"),
+  idioma: text("idioma").notNull().default("es"),
+  contenido: text("contenido").notNull().default(""),
+  botones: jsonb("botones")
+    .$type<Array<{ text: string; type?: string }>>()
+    .notNull()
+    .default([]),
+  header: text("header"),
+  footer: text("footer"),
+  // Valor que el bot estampa en PLANTILLA_ENVIADA al usar esta plantilla.
+  valorEstampado: text("valor_estampado"),
+  // Switch de rotación: true = el bot la usa; false = excluida.
+  activo: boolean("activo").notNull().default(true),
+  // Estado de moderación: local | review | approved | rejected.
+  estado: text("estado").notNull().default("local"),
+  rejectReason: text("reject_reason"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
  * eventos_kommo: webhooks crudos para auditoría e idempotencia.
  */
 export const eventosKommo = pgTable("eventos_kommo", {
@@ -130,6 +179,8 @@ export const kpiSnapshots = pgTable("kpi_snapshots", {
 
 export type BmConfig = typeof bmConfig.$inferSelect;
 export type NewBmConfig = typeof bmConfig.$inferInsert;
+export type Plantilla = typeof plantillas.$inferSelect;
+export type NewPlantilla = typeof plantillas.$inferInsert;
 export type LogMovimiento = typeof logMovimientos.$inferSelect;
 export type EventoKommo = typeof eventosKommo.$inferSelect;
 export type KpiSnapshot = typeof kpiSnapshots.$inferSelect;

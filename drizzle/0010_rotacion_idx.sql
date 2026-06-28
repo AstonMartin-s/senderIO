@@ -1,0 +1,1 @@
+ALTER TABLE "bm_config" ADD COLUMN "rotacion_idx" integer DEFAULT 0 NOT NULL;

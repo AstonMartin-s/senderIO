@@ -2,7 +2,59 @@ import type {
   KommoClient,
   KommoLead,
   KommoPipeline,
+  KommoTemplate,
+  KommoTemplateReview,
+  NewStageInput,
+  WabaTemplateInput,
 } from "./types.js";
+
+/** Forma cruda de una plantilla de chat tal como la devuelve la API v4. */
+interface RawTemplate {
+  id: number;
+  name: string;
+  type?: string;
+  content?: string;
+  waba_category?: string | null;
+  waba_language?: string | null;
+  waba_selected_waba_ids?: string[] | null;
+  buttons?: Array<{ text: string; type?: string }> | null;
+  review_status?: string | null;
+}
+
+function mapTemplate(t: RawTemplate): KommoTemplate {
+  return {
+    id: t.id,
+    name: t.name,
+    type: t.type ?? "amocrm",
+    content: t.content ?? "",
+    category: t.waba_category ?? null,
+    language: t.waba_language ?? null,
+    wabaIds: t.waba_selected_waba_ids ?? [],
+    buttons: (t.buttons ?? []).map((b) => ({ text: b.text, type: b.type })),
+    reviewStatus: t.review_status ?? null,
+  };
+}
+
+/** Forma cruda de un pipeline tal como lo devuelve la API v4. */
+interface RawPipeline {
+  id: number;
+  name: string;
+  _embedded?: {
+    statuses?: Array<{ id: number; name: string; pipeline_id: number }>;
+  };
+}
+
+function mapPipeline(p: RawPipeline): KommoPipeline {
+  return {
+    id: p.id,
+    name: p.name,
+    stages: (p._embedded?.statuses ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      pipeline_id: s.pipeline_id,
+    })),
+  };
+}
 
 /**
  * Normaliza un teléfono a E.164 (`+` + dígitos, sin espacios ni guiones).
@@ -148,29 +200,167 @@ export class RealKommoClient implements KommoClient {
     }
   }
 
+  async setCampoLead(
+    leadId: number,
+    fieldId: number,
+    value: string
+  ): Promise<void> {
+    await this.req(`/leads/${leadId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        custom_fields_values: [
+          { field_id: fieldId, values: [{ value }] },
+        ],
+      }),
+    });
+  }
+
   async listPipelines(): Promise<KommoPipeline[]> {
     const res = await this.req(`/leads/pipelines`);
     if (res.status === 204) return [];
     const json = (await res.json()) as {
+      _embedded?: { pipelines?: RawPipeline[] };
+    };
+    return (json._embedded?.pipelines ?? []).map(mapPipeline);
+  }
+
+  async createPipeline(input: {
+    name: string;
+    stages: NewStageInput[];
+  }): Promise<KommoPipeline> {
+    // Idempotencia: si ya existe un pipeline con ese nombre, lo devolvemos.
+    const existentes = await this.listPipelines();
+    const yaExiste = existentes.find(
+      (p) => p.name.trim().toLowerCase() === input.name.trim().toLowerCase()
+    );
+    if (yaExiste) return yaExiste;
+
+    // La API acepta un array de pipelines a crear; mandamos uno.
+    // Kommo exige is_main, is_unsorted_on y sort a nivel pipeline.
+    const body = [
+      {
+        name: input.name,
+        is_main: false,
+        is_unsorted_on: false,
+        sort: 1000,
+        _embedded: {
+          statuses: input.stages.map((s, i) => ({
+            name: s.name,
+            sort: s.sort ?? (i + 1) * 10,
+            type: s.type ?? 0,
+            ...(s.color ? { color: s.color } : {}),
+          })),
+        },
+      },
+    ];
+
+    const res = await this.req(`/leads/pipelines`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json()) as {
+      _embedded?: { pipelines?: RawPipeline[] };
+    };
+    const creado = json._embedded?.pipelines?.[0];
+    if (!creado) {
+      throw new Error("Kommo no devolvió el pipeline creado");
+    }
+    return mapPipeline(creado);
+  }
+
+  async findCustomFieldByName(
+    name: string
+  ): Promise<{ id: number } | null> {
+    const res = await this.req(`/leads/custom_fields?limit=250`);
+    if (res.status === 204) return null;
+    const json = (await res.json()) as {
+      _embedded?: { custom_fields?: Array<{ id: number; name: string }> };
+    };
+    const target = name.trim().toLowerCase();
+    const found = (json._embedded?.custom_fields ?? []).find(
+      (f) => (f.name ?? "").trim().toLowerCase() === target
+    );
+    return found ? { id: found.id } : null;
+  }
+
+  async listTemplates(onlyWaba = false): Promise<KommoTemplate[]> {
+    const res = await this.req(`/chats/templates?limit=250&with=review_status`);
+    if (res.status === 204) return [];
+    const json = (await res.json()) as {
+      _embedded?: { chat_templates?: RawTemplate[] };
+    };
+    const all = (json._embedded?.chat_templates ?? []).map(mapTemplate);
+    return onlyWaba ? all.filter((t) => t.type === "waba") : all;
+  }
+
+  async createTemplate(input: WabaTemplateInput): Promise<KommoTemplate> {
+    // La API espera un array, aunque mandemos una sola.
+    const body = [
+      {
+        name: input.name,
+        type: "waba",
+        content: input.content,
+        waba_category: input.category ?? "MARKETING",
+        waba_language: input.language ?? "es",
+        waba_selected_waba_ids: input.wabaIds,
+        ...(input.buttons?.length
+          ? {
+              buttons: input.buttons.map((b) => ({
+                text: b.text,
+                type: b.type ?? "inline",
+              })),
+            }
+          : {}),
+        ...(input.header != null ? { waba_header: input.header } : {}),
+        ...(input.footer != null ? { waba_footer: input.footer } : {}),
+        ...(input.examples ? { waba_examples: input.examples } : {}),
+      },
+    ];
+
+    const res = await this.req(`/chats/templates`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json()) as {
+      _embedded?: { chat_templates?: RawTemplate[] };
+    };
+    const creada = json._embedded?.chat_templates?.[0];
+    if (!creada) throw new Error("Kommo no devolvió la plantilla creada");
+    return mapTemplate(creada);
+  }
+
+  async submitTemplateForReview(id: number): Promise<KommoTemplateReview> {
+    const res = await this.req(`/chats/templates/${id}/review`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    const json = (await res.json()) as {
       _embedded?: {
-        pipelines?: Array<{
-          id: number;
-          name: string;
-          _embedded?: {
-            statuses?: Array<{ id: number; name: string; pipeline_id: number }>;
-          };
-        }>;
+        reviews?: Array<{ status?: string; reject_reason?: string }>;
       };
     };
-    const pipelines = json._embedded?.pipelines ?? [];
-    return pipelines.map((p) => ({
-      id: p.id,
-      name: p.name,
-      stages: (p._embedded?.statuses ?? []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        pipeline_id: s.pipeline_id,
-      })),
-    }));
+    const review = json._embedded?.reviews?.[0];
+    return {
+      status: review?.status ?? "unknown",
+      rejectReason: review?.reject_reason || undefined,
+    };
+  }
+
+  async getTemplateReview(id: number): Promise<KommoTemplateReview> {
+    const res = await this.req(`/chats/templates/${id}?with=review_status`);
+    if (res.status === 204) return { status: "unknown" };
+    const json = (await res.json()) as {
+      review_status?: string | null;
+      _embedded?: {
+        reviews?: Array<{ status?: string; reject_reason?: string }>;
+      };
+    };
+    // El último review es el más reciente; review_status es el resumen del top-level.
+    const reviews = json._embedded?.reviews ?? [];
+    const last = reviews[reviews.length - 1];
+    return {
+      status: json.review_status ?? last?.status ?? "unknown",
+      rejectReason: last?.reject_reason || undefined,
+    };
   }
 }

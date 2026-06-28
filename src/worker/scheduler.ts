@@ -1,5 +1,7 @@
 import { getBm, getActiveBms, patchBm, setProximoTick } from "../services/bm.js";
 import { registrarMovimiento } from "../services/movimientos.js";
+import { getRotacion } from "../services/plantillas.js";
+import { config } from "../config.js";
 import { getKommoClient } from "../kommo/index.js";
 import {
   dentroDeVentana,
@@ -101,6 +103,29 @@ async function tick(bmId: string) {
     const meta = await kommo
       .getLeadMeta(lead.id)
       .catch(() => ({ telefono: null, segmento: null }));
+
+    // Rotación de plantillas (round-robin): elegimos qué plantilla le toca a este
+    // lead y la estampamos en PLANTILLA_ENVIADA ANTES de mover, así el bot la lee
+    // y rutea al envío correcto. Con 1 sola plantilla ON, siempre esa; con varias,
+    // va de una en una. Si no hay campo configurado o plantillas en rotación, el
+    // bot usa su comportamiento por defecto.
+    let plantillaValor: string | null = null;
+    let avanzarRotacion = false;
+    const cfId = config.kommo.cfPlantillaId;
+    if (cfId) {
+      const rotacion = await getRotacion(bm.id);
+      if (rotacion.length > 0) {
+        const elegida = rotacion[bm.rotacionIdx % rotacion.length];
+        plantillaValor = elegida.valorEstampado;
+        avanzarRotacion = true;
+        await kommo
+          .setCampoLead(lead.id, cfId, plantillaValor!)
+          .catch((err) =>
+            console.error(`[worker:${bm.id}] no se pudo estampar plantilla:`, err)
+          );
+      }
+    }
+
     await kommo.moveLead(lead.id, bm.pipelineId, bm.stageDestinoId);
     await registrarMovimiento({
       bmId: bm.id,
@@ -110,11 +135,13 @@ async function tick(bmId: string) {
       etapaDestino: bm.stageDestinoId,
       telefono: meta.telefono,
       segmento: meta.segmento,
+      plantilla: plantillaValor,
     });
     await patchBm(bm.id, {
       enviadosHoy: bm.enviadosHoy + 1,
       ultimoEnvio: new Date(),
       fecha: todayLocal(),
+      ...(avanzarRotacion ? { rotacionIdx: bm.rotacionIdx + 1 } : {}),
     });
     console.log(
       `[worker:${bm.id}] lead ${lead.id} -> envío (${bm.enviadosHoy + 1}/${bm.limiteDiario})`

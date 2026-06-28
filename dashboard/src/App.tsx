@@ -9,18 +9,21 @@ import {
   IconRefresh,
   IconSun,
   IconMoon,
+  IconMessage,
 } from "./components/icons";
 import { useTheme } from "./lib/theme";
 import Overview from "./views/Overview";
 import BmsView from "./views/BmsView";
 import FunnelView from "./views/FunnelView";
 import LogView from "./views/LogView";
+import PlantillasView from "./views/PlantillasView";
 
-type View = "overview" | "bms" | "funnel" | "log";
+type View = "overview" | "bms" | "plantillas" | "funnel" | "log";
 
 const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "overview", label: "Overview", icon: IconGrid },
   { id: "bms", label: "Por BM", icon: IconLayers },
+  { id: "plantillas", label: "Plantillas", icon: IconMessage },
   { id: "funnel", label: "Funnel & KPIs", icon: IconFunnel },
   { id: "log", label: "Log en vivo", icon: IconActivity },
 ];
@@ -28,6 +31,7 @@ const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
 const TITLES: Record<View, { title: string; sub: string }> = {
   overview: { title: "Overview", sub: "Estado global de la operación de goteo" },
   bms: { title: "Por BM", sub: "Control de ritmo, límites y cortafuegos por número" },
+  plantillas: { title: "Plantillas", sub: "Plantillas WABA por BM · rotación con switch ON/OFF" },
   funnel: { title: "Funnel & KPIs", sub: "Embudo de resultados y conversión" },
   log: { title: "Log en vivo", sub: "Movimientos y resultados en tiempo real" },
 };
@@ -141,6 +145,7 @@ export default function App() {
           <div key={view} className="animate-fade-rise">
             {view === "overview" && <Overview />}
             {view === "bms" && <BmsView />}
+            {view === "plantillas" && <PlantillasView />}
             {view === "funnel" && <FunnelView />}
             {view === "log" && <LogView />}
           </div>

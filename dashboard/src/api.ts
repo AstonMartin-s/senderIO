@@ -36,6 +36,45 @@ export interface Bm {
   mensajeTexto: string | null;
   campaignId: string | null;
   campaignNombre: string | null;
+  wabaId: string | null;
+  chatSourceId: number | null;
+  botListo: boolean;
+}
+
+export interface GenerarBotResp {
+  bot: unknown;
+  kommoUrl: string;
+  descartadas: number;
+  plantillasUsadas: {
+    nombre: string;
+    kommoTemplateId: number;
+    valorEstampado: string;
+  }[];
+}
+
+export interface Boton {
+  text: string;
+  type?: string;
+}
+
+export interface Plantilla {
+  id: number;
+  bmId: string;
+  nombre: string;
+  kommoTemplateId: number | null;
+  wabaId: string | null;
+  categoria: string;
+  idioma: string;
+  contenido: string;
+  botones: Boton[];
+  header: string | null;
+  footer: string | null;
+  valorEstampado: string | null;
+  activo: boolean;
+  estado: string; // local | review | approved | rejected
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Movimiento {
@@ -101,6 +140,39 @@ export const api = {
   /** CSV en formato del contrato de trazabilidad (plantilla_envio). */
   trazabilidadCsvUrl: (f: LogFiltro = {}) =>
     `/api/trazabilidad.csv?${filtroQS(f).replace(/^&/, "")}`,
+
+  plantillas: (bm?: string) =>
+    req<Plantilla[]>(`/api/plantillas${bm ? `?bm=${encodeURIComponent(bm)}` : ""}`),
+  createPlantilla: (data: Partial<Plantilla>) =>
+    req<Plantilla>("/api/plantillas", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  patchPlantilla: (id: number, patch: Partial<Plantilla>) =>
+    req<Plantilla>(`/api/plantillas/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deletePlantilla: (id: number) =>
+    req<{ ok: boolean }>(`/api/plantillas/${id}`, { method: "DELETE" }),
+  submitPlantilla: (id: number) =>
+    req<Plantilla>(`/api/plantillas/${id}/submit`, { method: "POST" }),
+  checkPlantilla: (id: number) =>
+    req<Plantilla>(`/api/plantillas/${id}/check`, { method: "POST" }),
+  generarBot: (id: string) =>
+    req<GenerarBotResp>(`/api/bms/${id}/generar-bot`, { method: "POST" }),
+  siguienteIdBm: () => req<{ id: string }>("/api/bms/siguiente-id"),
+  altaBm: (data: {
+    nombre: string;
+    wabaId?: string | null;
+    chatSourceId?: number | null;
+    id?: string;
+  }) => req<Bm>("/api/bms/alta", { method: "POST", body: JSON.stringify(data) }),
+  importarPlantillas: () =>
+    req<{ importadas: number; salteadas: number; sinBm: number }>(
+      "/api/plantillas/importar",
+      { method: "POST" }
+    ),
 };
 
 export interface LogFiltro {

@@ -57,6 +57,27 @@
       "when": 1782664288815,
       "tag": "0007_milky_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782674530038,
+      "tag": "0008_great_master_chief",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782679166961,
+      "tag": "0009_fine_hawkeye",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782681073632,
+      "tag": "0010_rotacion_idx",
+      "breakpoints": true
     }
   ]
 }

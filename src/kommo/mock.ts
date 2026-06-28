@@ -1,4 +1,12 @@
-import type { KommoClient, KommoLead, KommoPipeline } from "./types.js";
+import type {
+  KommoClient,
+  KommoLead,
+  KommoPipeline,
+  KommoTemplate,
+  KommoTemplateReview,
+  NewStageInput,
+  WabaTemplateInput,
+} from "./types.js";
 
 /**
  * Cliente Kommo simulado en memoria. Permite probar el goteo, el movimiento de
@@ -84,6 +92,67 @@ export class MockKommoClient implements KommoClient {
     // Simula la plantilla estampada por el Salesbot, rotando entre algunas.
     const plantillas = ["bienvenida_curso", "promo_junio", "reactivacion_v2"];
     return plantillas[leadId % plantillas.length];
+  }
+
+  async setCampoLead(
+    leadId: number,
+    fieldId: number,
+    value: string
+  ): Promise<void> {
+    console.log(`[mock] setCampoLead lead=${leadId} field=${fieldId} -> ${value}`);
+  }
+
+  async createPipeline(input: {
+    name: string;
+    stages: NewStageInput[];
+  }): Promise<KommoPipeline> {
+    // Asigna IDs ficticios determinísticos para pruebas.
+    const baseId = 90000000 + Math.floor(Math.random() * 1000) * 100;
+    return {
+      id: baseId,
+      name: input.name,
+      stages: input.stages.map((s, i) => ({
+        id: baseId + (i + 1),
+        name: s.name,
+        pipeline_id: baseId,
+      })),
+    };
+  }
+
+  async findCustomFieldByName(
+    name: string
+  ): Promise<{ id: number } | null> {
+    // El campo PLANTILLA_ENVIADA existe en la cuenta real; lo simulamos.
+    if (name.trim().toLowerCase() === "plantilla_enviada") {
+      return { id: 1227432 };
+    }
+    return null;
+  }
+
+  async listTemplates(_onlyWaba = false): Promise<KommoTemplate[]> {
+    return [];
+  }
+
+  async createTemplate(input: WabaTemplateInput): Promise<KommoTemplate> {
+    return {
+      id: 80000000 + Math.floor(Math.random() * 100000),
+      name: input.name,
+      type: "waba",
+      content: input.content,
+      category: input.category ?? "MARKETING",
+      language: input.language ?? "es",
+      wabaIds: input.wabaIds,
+      buttons: input.buttons ?? [],
+    };
+  }
+
+  async submitTemplateForReview(_id: number): Promise<KommoTemplateReview> {
+    return { status: "review" };
+  }
+
+  async getTemplateReview(_id: number): Promise<KommoTemplateReview> {
+    // En mock simulamos que sigue en revisión.
+    return { status: "review" };
   }
 
   async listPipelines(): Promise<KommoPipeline[]> {

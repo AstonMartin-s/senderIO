@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, usePolling, type Bm } from "../api";
 import { Card, Button, Toggle, ProgressBar, Dot } from "../components/ui";
 import {
@@ -9,12 +9,16 @@ import {
   IconPlus,
   IconRefresh,
   IconClock,
+  IconCheck,
+  IconSend,
+  IconTrash,
 } from "../components/icons";
 import { estadoBm, estadoMeta, timeAgo, timeUntil } from "../lib/format";
 
 export default function BmsView() {
   const { data, refresh, mutate } = usePolling<Bm[]>(api.bms, 4000);
   const [editing, setEditing] = useState<Bm | "new" | null>(null);
+  const [altaAuto, setAltaAuto] = useState(false);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const bms = data ?? [];
 
@@ -48,6 +52,39 @@ export default function BmsView() {
     }
   }
 
+  async function genBot(bm: Bm) {
+    setBusy((s) => ({ ...s, [bm.id]: true }));
+    try {
+      const r = await api.generarBot(bm.id);
+      const json = JSON.stringify(r.bot);
+      let copiado = false;
+      try {
+        await navigator.clipboard.writeText(json);
+        copiado = true;
+      } catch {
+        copiado = false;
+      }
+      window.open(r.kommoUrl, "_blank");
+      alert(
+        `Bot generado${copiado ? " y copiado al portapapeles" : ""}.\n\n` +
+          `Plantillas en rotación (el lead recibe una por vez, round-robin):\n` +
+          (r.plantillasUsadas
+            .map((p, i) => `  ${i + 1}. ${p.nombre} → ${p.valorEstampado}`)
+            .join("\n") || "  —") +
+          (r.descartadas > 0
+            ? `\n\n⚠️ ${r.descartadas} plantilla(s) quedaron fuera: el bot rota hasta 4 a la vez.`
+            : "") +
+          `\n\nEn Kommo (abrí la pestaña): Ajustes → Herramientas de comunicación → ` +
+          `Salesbots → Importar un bot, y pegá el JSON.\n` +
+          `Cuando termines, tocá "Confirmo bot agregado".`
+      );
+    } catch (e) {
+      alert(`No se pudo generar: ${(e as Error).message}`);
+    } finally {
+      setBusy((s) => ({ ...s, [bm.id]: false }));
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -60,9 +97,14 @@ export default function BmsView() {
             <span className="font-medium text-muted">Pausar</span> = freno temporal (cortafuegos), se reanuda en el reset diario.
           </p>
         </div>
-        <Button variant="primary" onClick={() => setEditing("new")}>
-          <IconPlus className="h-4 w-4" /> Alta de BM
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="default" onClick={() => setEditing("new")}>
+            <IconPlus className="h-4 w-4" /> Alta manual
+          </Button>
+          <Button variant="primary" onClick={() => setAltaAuto(true)}>
+            <IconPlus className="h-4 w-4" /> Alta automática
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
@@ -135,7 +177,55 @@ export default function BmsView() {
                 )}
               </div>
 
-              <div className="mt-5 flex items-center gap-2 border-t border-line pt-4">
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-line">
+                <span className="text-xs font-medium text-muted">Bot</span>
+                {bm.botListo ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-300">
+                    <IconCheck className="h-3.5 w-3.5" /> importado en Kommo
+                  </span>
+                ) : (
+                  <span className="text-xs text-faint">no importado</span>
+                )}
+                <div className="ml-auto flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    disabled={busy[bm.id]}
+                    onClick={() => genBot(bm)}
+                    title="Genera el JSON del Salesbot y abre Kommo para importarlo"
+                  >
+                    <IconSend className="h-3.5 w-3.5" /> Generar bot
+                  </Button>
+                  {bm.botListo ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy[bm.id]}
+                      onClick={() =>
+                        act(bm.id, { botListo: false }, () =>
+                          api.patchBm(bm.id, { botListo: false } as Partial<Bm>)
+                        )
+                      }
+                    >
+                      Desmarcar
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="success"
+                      disabled={busy[bm.id]}
+                      onClick={() =>
+                        act(bm.id, { botListo: true }, () =>
+                          api.patchBm(bm.id, { botListo: true } as Partial<Bm>)
+                        )
+                      }
+                    >
+                      Confirmo bot agregado
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2 border-t border-line pt-4">
                 {bm.pausado ? (
                   <Button
                     variant="success"
@@ -201,6 +291,32 @@ export default function BmsView() {
                   <Button size="sm" variant="ghost" onClick={() => setEditing(bm)}>
                     <IconEdit className="h-4 w-4" />
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={busy[bm.id]}
+                    onClick={async () => {
+                      if (
+                        !confirm(
+                          `¿Eliminar el BM ${bm.id} (${bm.nombre})? Borra su config en ` +
+                            `SenderIO; no toca el pipeline en Kommo. No se puede deshacer.`
+                        )
+                      )
+                        return;
+                      setBusy((s) => ({ ...s, [bm.id]: true }));
+                      try {
+                        await api.deleteBm(bm.id);
+                        refresh();
+                      } catch (e) {
+                        alert(`No se pudo eliminar: ${(e as Error).message}`);
+                      } finally {
+                        setBusy((s) => ({ ...s, [bm.id]: false }));
+                      }
+                    }}
+                    title="Eliminar BM"
+                  >
+                    <IconTrash className="h-4 w-4 text-rose-500" />
+                  </Button>
                 </div>
               </div>
             </Card>
@@ -218,6 +334,96 @@ export default function BmsView() {
           }}
         />
       )}
+
+      {altaAuto && (
+        <AltaAutoModal
+          onClose={() => setAltaAuto(false)}
+          onSaved={() => {
+            setAltaAuto(false);
+            refresh();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AltaAutoModal({
+  onClose,
+  onSaved,
+}: {
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({ nombre: "", wabaId: "", chatSourceId: "" });
+  const [idSug, setIdSug] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.siguienteIdBm().then((r) => setIdSug(r.id)).catch(() => {});
+  }, []);
+
+  function set(k: keyof typeof form, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function crear() {
+    setSaving(true);
+    setError(null);
+    try {
+      await api.altaBm({
+        nombre: form.nombre,
+        wabaId: form.wabaId || null,
+        chatSourceId: form.chatSourceId ? Number(form.chatSourceId) : null,
+      });
+      onSaved();
+    } catch (e) {
+      setError(String((e as Error).message));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="animate-fade-rise relative z-10 my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-md flex-col rounded-2xl bg-surface ring-1 ring-line shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-6 py-3">
+          <h3 className="text-base font-semibold text-fg">Alta automática de BM</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg">
+            <IconClose className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+          <p className="text-xs text-muted">
+            Crea el pipeline y sus 5 etapas (BASE/ENVÍO/SI/NO/ERROR) en Kommo y arma el BM
+            con esos IDs. La base de origen es la etapa BASE del pipeline nuevo. El ritmo y la
+            ventana quedan con valores por defecto, editables después.
+            {idSug && (
+              <>
+                {" "}Se creará como <span className="font-medium text-fg">{idSug}</span>.
+              </>
+            )}
+          </p>
+          <Field label="Nombre del BM" value={form.nombre} onChange={(v) => set("nombre", v)} placeholder="DogzeePL" />
+          <Field label="WABA id (del número conectado)" value={form.wabaId} onChange={(v) => set("wabaId", v)} placeholder="1019386220453924" />
+          <Field label="chat_source id (canal del bot)" value={form.chatSourceId} onChange={(v) => set("chatSourceId", v)} placeholder="59026" />
+          {error && (
+            <p className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-600 dark:text-rose-300">
+              {error}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 justify-end gap-2 border-t border-line px-6 py-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={crear} disabled={saving || !form.nombre}>
+            {saving ? "Creando…" : "Crear BM"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -275,10 +481,10 @@ function BmModal({
     umbralErroresConsecutivos: String(bm?.umbralErroresConsecutivos ?? 5),
     fuenteEnvio: bm?.fuenteEnvio ?? "crm",
     plataforma: bm?.plataforma ?? "",
-    templateNombre: bm?.templateNombre ?? "",
-    mensajeTexto: bm?.mensajeTexto ?? "",
     campaignId: bm?.campaignId ?? "",
     campaignNombre: bm?.campaignNombre ?? "",
+    wabaId: bm?.wabaId ?? "",
+    chatSourceId: bm?.chatSourceId != null ? String(bm.chatSourceId) : "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -310,10 +516,10 @@ function BmModal({
       umbralErroresConsecutivos: Number(form.umbralErroresConsecutivos),
       fuenteEnvio: form.fuenteEnvio || "crm",
       plataforma: form.plataforma ? form.plataforma : null,
-      templateNombre: form.templateNombre || null,
-      mensajeTexto: form.mensajeTexto || null,
       campaignId: form.campaignId || null,
       campaignNombre: form.campaignNombre || null,
+      wabaId: form.wabaId || null,
+      chatSourceId: num(form.chatSourceId),
     };
     try {
       if (isNew) {
@@ -330,13 +536,13 @@ function BmModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="animate-fade-rise relative z-10 max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-surface ring-1 ring-line shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface px-6 py-4">
+      <div className="animate-fade-rise relative z-10 my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col rounded-2xl bg-surface ring-1 ring-line shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-6 py-3">
           <h3 className="text-base font-semibold text-fg">
             {isNew ? "Alta de BM" : `Editar ${bm!.id}`}
           </h3>
@@ -348,7 +554,7 @@ function BmModal({
           </button>
         </div>
 
-        <div className="space-y-6 px-6 py-5">
+        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-4">
           <Section title="Identidad y mapeo de etapas (Kommo)">
             <div className="grid grid-cols-2 gap-3">
               {isNew && (
@@ -407,22 +613,25 @@ function BmModal({
                   <option value="pam">pam</option>
                 </select>
               </label>
-              <Field label="Plantilla Meta (template_nombre)" value={form.templateNombre} onChange={(v) => set("templateNombre", v)} placeholder="reactivacion_bono_v2" />
               <Field label="campaign_id_externo" value={form.campaignId} onChange={(v) => set("campaignId", v)} placeholder={`default: ${bm?.id ?? "ID del BM"}`} />
               <Field label="campaign_nombre" value={form.campaignNombre} onChange={(v) => set("campaignNombre", v)} placeholder="default: nombre del BM" />
             </div>
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-medium text-muted">
-                Texto del mensaje (lo que se envía · columna mensaje_texto del CSV)
-              </span>
-              <textarea
-                value={form.mensajeTexto}
-                onChange={(e) => set("mensajeTexto", e.target.value)}
-                rows={3}
-                placeholder="Hola! Te escribimos de… {pegá acá el cuerpo de la plantilla}"
-                className="w-full resize-y rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
-              />
-            </label>
+            <p className="mt-2 text-xs text-faint">
+              <span className="font-medium text-muted">template_nombre</span> y{" "}
+              <span className="font-medium text-muted">mensaje_texto</span> del CSV ya no se
+              cargan acá: salen de la plantilla efectivamente enviada (sección Plantillas),
+              cruzada por la que estampa el bot en cada lead.
+            </p>
+          </Section>
+
+          <Section title="Número conectado (Kommo)">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="WABA id (waba_selected_waba_ids)" value={form.wabaId} onChange={(v) => set("wabaId", v)} placeholder="1019386220453924" />
+              <Field label="chat_source id (canal del bot)" value={form.chatSourceId} onChange={(v) => set("chatSourceId", v)} placeholder="59026" />
+            </div>
+            <p className="mt-2 text-xs text-faint">
+              Se obtienen una sola vez al conectar el número en Kommo. El WABA id se usa al crear plantillas; el chat_source id, al clonar el bot.
+            </p>
           </Section>
 
           {error && (
@@ -432,13 +641,40 @@ function BmModal({
           )}
         </div>
 
-        <div className="sticky bottom-0 flex justify-end gap-2 border-t border-line bg-surface px-6 py-4">
-          <Button variant="ghost" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={save} disabled={saving}>
-            {saving ? "Guardando…" : "Guardar"}
-          </Button>
+        <div className="flex shrink-0 items-center gap-2 border-t border-line px-6 py-3">
+          {!isNew && (
+            <Button
+              variant="danger"
+              onClick={async () => {
+                if (
+                  !confirm(
+                    `¿Eliminar el BM ${bm!.id}? Esto borra su configuración en SenderIO ` +
+                      `(no toca el pipeline en Kommo). Esta acción no se puede deshacer.`
+                  )
+                )
+                  return;
+                setSaving(true);
+                try {
+                  await api.deleteBm(bm!.id);
+                  onSaved();
+                } catch (e) {
+                  setError(String((e as Error).message));
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+            >
+              <IconTrash className="h-4 w-4" /> Eliminar BM
+            </Button>
+          )}
+          <div className="ml-auto flex gap-2">
+            <Button variant="ghost" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button variant="primary" onClick={save} disabled={saving}>
+              {saving ? "Guardando…" : "Guardar"}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
