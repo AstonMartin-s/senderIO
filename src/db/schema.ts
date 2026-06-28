@@ -33,6 +33,10 @@ export const bmConfig = pgTable("bm_config", {
 
   activo: boolean("activo").notNull().default(false),
   pausado: boolean("pausado").notNull().default(false),
+  // Se enciende cuando la etapa de origen se queda sin leads para enviar. No es
+  // una pausa real (el reloj sigue tickeando), pero permite alertar en el panel.
+  sinLeads: boolean("sin_leads").notNull().default(false),
+  sinLeadsDesde: timestamp("sin_leads_desde", { withTimezone: true }),
 
   limiteDiario: integer("limite_diario").notNull().default(30),
   enviadosHoy: integer("enviados_hoy").notNull().default(0),

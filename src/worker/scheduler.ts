@@ -67,8 +67,25 @@ async function tick(bmId: string) {
 
   if (!lead) {
     // Sin leads: no consume límite, reintenta en el próximo ciclo.
+    // Encendemos el flag (y lo logueamos) solo en la transición, para alertar
+    // en el panel sin spamear la bitácora en cada tick vacío.
+    if (!bm.sinLeads) {
+      await patchBm(bm.id, { sinLeads: true, sinLeadsDesde: new Date() });
+      await registrarMovimiento({
+        bmId: bm.id,
+        accion: "sin_leads",
+        resultado: "sin_leads",
+      });
+      console.log(`[worker:${bm.id}] sin leads en la etapa de origen`);
+    }
     await programarProximoNormal(bm);
     return;
+  }
+
+  // Había leads: si veníamos marcados como "sin leads", apagamos el flag.
+  if (bm.sinLeads) {
+    await patchBm(bm.id, { sinLeads: false, sinLeadsDesde: null });
+    bm.sinLeads = false;
   }
 
   // Lock simple para origen compartido entre BMs.

@@ -6,7 +6,8 @@ export type Accion =
   | "resultado_si"
   | "resultado_no"
   | "resultado_error"
-  | "pausa_bm";
+  | "pausa_bm"
+  | "sin_leads";
 
 export type Resultado = "ok" | "error_3132" | "sin_leads" | null;
 

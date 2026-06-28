@@ -1,7 +1,7 @@
 import { api, usePolling, type Bm, type KpiFila } from "../api";
 import { Card, StatCard, ProgressBar, Dot } from "../components/ui";
 import { IconSend, IconCheck, IconAlert, IconLayers } from "../components/icons";
-import { estadoBm, estadoMeta } from "../lib/format";
+import { estadoBm, estadoMeta, timeAgo } from "../lib/format";
 
 export default function Overview() {
   const bmsQ = usePolling<Bm[]>(api.bms, 4000);
@@ -14,6 +14,7 @@ export default function Overview() {
   const activos = bms.filter((b) => b.activo && !b.pausado).length;
   const pausados = bms.filter((b) => b.activo && b.pausado).length;
   const inactivos = bms.filter((b) => !b.activo).length;
+  const sinLeads = bms.filter((b) => b.activo && b.sinLeads);
 
   const enviados = total?.enviados ?? 0;
   const errores = total?.errores ?? 0;
@@ -41,6 +42,27 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
+      {sinLeads.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3.5">
+          <IconAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
+          <div className="text-sm">
+            <p className="font-semibold text-amber-700 dark:text-amber-200">
+              Sin leads en la base de origen
+            </p>
+            <p className="mt-0.5 text-amber-700/80 dark:text-amber-200/80">
+              {sinLeads
+                .map(
+                  (b) =>
+                    `${b.id} (${b.sinLeadsDesde ? timeAgo(b.sinLeadsDesde) : "ahora"})`
+                )
+                .join(" · ")}{" "}
+              — el goteo está activo pero no hay leads para enviar. Cargá leads en
+              la etapa de origen.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Enviados hoy"
@@ -116,6 +138,11 @@ export default function Overview() {
                 >
                   {meta.label}
                 </span>
+                {bm.activo && bm.sinLeads && (
+                  <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-300">
+                    Sin leads
+                  </span>
+                )}
                 <div className="ml-auto flex items-center gap-8 text-sm">
                   <div className="hidden w-40 sm:block">
                     <ProgressBar

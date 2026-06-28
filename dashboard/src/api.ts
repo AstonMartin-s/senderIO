@@ -12,6 +12,8 @@ export interface Bm {
   stageNoId: number | null;
   activo: boolean;
   pausado: boolean;
+  sinLeads: boolean;
+  sinLeadsDesde: string | null;
   limiteDiario: number;
   enviadosHoy: number;
   erroresHoy: number;
