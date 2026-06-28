@@ -142,7 +142,7 @@ export default function App() {
         </header>
 
         <main className="flex-1 overflow-y-auto px-8 py-6">
-          <div key={view} className="animate-fade-rise">
+          <div key={view} className="animate-fade-in">
             {view === "overview" && <Overview />}
             {view === "bms" && <BmsView />}
             {view === "plantillas" && <PlantillasView />}
