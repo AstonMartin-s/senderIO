@@ -98,15 +98,23 @@ export interface KpiFila {
 }
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
+  // Solo mandamos Content-Type JSON si hay body; con DELETE/GET sin cuerpo,
+  // Fastify rechaza ("Body cannot be empty when content-type is application/json").
+  const hasBody = options?.body != null;
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...(options?.headers ?? {}),
+    },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`${res.status} ${body}`);
   }
-  return res.json() as Promise<T>;
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export const api = {

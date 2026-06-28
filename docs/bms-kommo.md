@@ -38,12 +38,19 @@
 
 ## chat_source id por canal (leído del editor del bot)
 
+> Hay canales duplicados con el mismo nombre (error histórico de carga). Para BM1 el
+> correcto es el que aparece **tildado** en su bot (Dogzee `58864`, arriba de Telegram `58952`).
+
 | Canal | chat_source id | BM |
 |-------|----------------|----|
-| Fisioforma Bebedouro LTDA | `59692` | **BM2** |
-| (Spam Numero 3 / BM3) | `59026` | **BM3** |
-| Manufactura Ram (viejo SP2) | `58924` | — |
-| _resto: leer del editor (DevTools → `data-value`)_ | — | — |
+| Dogzee (tildado en SP1) | `58864` | **BM1** |
+| Los Armando Cereales SRL | `59026` | **BM3** |
+| Fisioforma Bebedouro LTDA | `59692` | (BM6, lo arma el usuario) |
+| Ambienger Engenharia Ambiental LTDA | `59690` | (sin asignar) |
+| Manufaktura Ram (viejo SP2) | `58924` | — |
+| Telegram | `58952` | — |
+
+Lista completa de canales: ver salida del snippet del editor (Inbox → filtro de canales).
 
 ## Plantillas WABA disponibles
 
