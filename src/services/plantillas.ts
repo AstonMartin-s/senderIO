@@ -140,6 +140,22 @@ export async function crearEnKommo(id: number): Promise<Plantilla> {
     footer: p.footer,
   });
 
+  // Kommo, ante un WABA id que no reconoce para este número, crea igual la
+  // plantilla pero la deja con waba_selected_waba_ids vacío: queda en "Borrador"
+  // y NUNCA llega a Meta. Detectamos eso y cortamos con un error claro en vez de
+  // reportar un falso "En revisión".
+  if (!creada.wabaIds || creada.wabaIds.length === 0) {
+    await patchPlantilla(id, {
+      kommoTemplateId: creada.id,
+      wabaId,
+      estado: "borrador",
+      rejectReason: `Kommo no vinculó el WABA ${wabaId} a este número. Verificá que ese WABA id sea el que Kommo tiene conectado para el BM (la cuenta nueva puede usar otro id).`,
+    });
+    throw new Error(
+      `Kommo creó la plantilla pero no la asoció al WABA ${wabaId} (quedó en Borrador). Revisá el WABA id del BM.`
+    );
+  }
+
   const review = await kommo.submitTemplateForReview(creada.id);
 
   const actualizada = await patchPlantilla(id, {
@@ -164,7 +180,13 @@ export async function chequearEstado(id: number): Promise<Plantilla> {
   }
   const kommo = getKommoClient();
   const review = await kommo.getTemplateReview(p.kommoTemplateId);
-  const estado = normalizarEstado(review.status);
+  let estado = normalizarEstado(review.status);
+  // Kommo no siempre expone el estado de moderación por API (llega "unknown" →
+  // "borrador"). En ese caso NO degradamos una plantilla que ya estaba aprobada
+  // o en revisión: mantenemos el estado previo para no perder la info.
+  if (estado === "borrador" && (p.estado === "approved" || p.estado === "review")) {
+    estado = p.estado;
+  }
   const actualizada = await patchPlantilla(id, {
     estado,
     rejectReason: review.rejectReason ?? (estado === "rejected" ? p.rejectReason : null),
@@ -238,6 +260,10 @@ function normalizarEstado(status: string): string {
   if (s === "approved") return "approved";
   if (s === "rejected") return "rejected";
   if (s === "paused") return "paused";
-  if (s === "review" || s === "pending" || s === "unknown") return "review";
-  return s || "review";
+  if (s === "review" || s === "pending" || s === "on_review") return "review";
+  // Kommo no expone review_status por API en algunos planes: ahí llega "unknown".
+  // No lo tratamos como "en revisión" (era un falso positivo); lo dejamos como
+  // borrador para no engañar al panel ni habilitar el envío.
+  if (s === "draft" || s === "unknown" || s === "") return "borrador";
+  return s;
 }
