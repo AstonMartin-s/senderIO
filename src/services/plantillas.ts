@@ -250,7 +250,9 @@ export async function importarDesdeKommo(): Promise<ImportResultado> {
       idioma: t.language ?? "es",
       contenido: t.content ?? "",
       botones: t.buttons.map((b) => ({ text: b.text, type: b.type })),
-      activo: true,
+      // Entran OFF: el usuario decide cuáles activar (importante porque BM ya
+      // operativos no deben cambiar de comportamiento solo por importar).
+      activo: false,
       estado: normalizarEstado(t.reviewStatus ?? "approved"),
     });
     importadas++;
