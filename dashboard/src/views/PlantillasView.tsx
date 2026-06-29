@@ -5,7 +5,6 @@ import {
   IconPlus,
   IconClose,
   IconTrash,
-  IconSend,
   IconCheck,
   IconAlert,
   IconRefresh,
@@ -13,6 +12,7 @@ import {
 
 const ESTADOS: Record<string, { label: string; cls: string }> = {
   local: { label: "Borrador", cls: "bg-line-strong/40 text-muted" },
+  borrador: { label: "Borrador", cls: "bg-line-strong/40 text-muted" },
   review: {
     label: "En revisión",
     cls: "bg-amber-500/15 text-amber-600 dark:text-amber-300",
@@ -65,24 +65,6 @@ export default function PlantillasView() {
     }
   }
 
-  async function submit(p: Plantilla) {
-    if (
-      !confirm(
-        `Crear "${p.nombre}" en Kommo y mandarla a aprobación de Meta?\nEsto la envía a moderación (no se puede deshacer desde acá).`
-      )
-    )
-      return;
-    setBusy((s) => ({ ...s, [p.id]: true }));
-    try {
-      await api.submitPlantilla(p.id);
-      plP.refresh();
-    } catch (e) {
-      alert(`No se pudo: ${(e as Error).message}`);
-    } finally {
-      setBusy((s) => ({ ...s, [p.id]: false }));
-    }
-  }
-
   async function check(p: Plantilla) {
     setBusy((s) => ({ ...s, [p.id]: true }));
     try {
@@ -123,26 +105,65 @@ export default function PlantillasView() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-muted">
           {plantillas.length} plantillas · cada una es una rama del bot. Las{" "}
           <span className="font-medium text-muted">activas</span> rotan en el envío;
           las inactivas el bot no las usa.
         </p>
         <div className="flex items-center gap-2">
-          <Button variant="default" onClick={importar} disabled={importando}>
+          <Button variant="primary" onClick={importar} disabled={importando}>
             <IconRefresh className="h-4 w-4" />
             {importando ? "Importando…" : "Importar de Kommo"}
           </Button>
-          <Button variant="primary" onClick={() => setEditing("new")}>
-            <IconPlus className="h-4 w-4" /> Nueva plantilla
+          <Button variant="default" onClick={() => setEditing("new")}>
+            <IconPlus className="h-4 w-4" /> Registrar manual
           </Button>
         </div>
       </div>
 
+      <Card className="border border-brand-500/20 bg-brand-500/5 p-4">
+        <div className="flex items-start gap-3">
+          <IconAlert className="mt-0.5 h-5 w-5 shrink-0 text-brand-600 dark:text-brand-300" />
+          <div className="space-y-1.5 text-sm">
+            <p className="font-semibold text-fg">
+              Las plantillas WABA se crean y aprueban en Kommo, no acá
+            </p>
+            <p className="text-muted">
+              La API de Kommo no permite asignar el número (WABA) ni mandar a
+              aprobación de Meta desde afuera. El flujo es:
+            </p>
+            <ol className="ml-4 list-decimal space-y-0.5 text-muted">
+              <li>
+                <span className="font-medium text-fg">En Kommo</span>: Ajustes →
+                Plantillas de chat → <span className="font-medium">Nueva plantilla</span>,
+                seleccionando la cuenta de WhatsApp del BM. Guardás y esperás la
+                aprobación de Meta.
+              </li>
+              <li>
+                <span className="font-medium text-fg">Acá</span>: cuando esté{" "}
+                <span className="font-medium">Aprobada</span>, tocás{" "}
+                <span className="font-medium">Importar de Kommo</span>. Se asocia
+                sola al BM por el WABA id.
+              </li>
+              <li>
+                Prendés el <span className="font-medium">switch ON</span> y ajustás
+                el <span className="font-medium">valor estampado</span> para que
+                entre en la rotación del bot.
+              </li>
+            </ol>
+            <p className="text-faint">
+              “Registrar manual” solo guarda un borrador local (para preparar el
+              valor estampado); no crea nada en Kommo.
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {porBm.length === 0 && (
         <Card className="p-10 text-center text-sm text-muted">
-          No hay plantillas todavía. Creá la primera con “Nueva plantilla”.
+          No hay plantillas todavía. Creá la primera en Kommo y después tocá{" "}
+          “Importar de Kommo”.
         </Card>
       )}
 
@@ -215,15 +236,12 @@ export default function PlantillasView() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {!enKommo ? (
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          disabled={busy[p.id]}
-                          onClick={() => submit(p)}
-                          title="Crear en Kommo y mandar a aprobación de Meta"
+                        <span
+                          className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-300"
+                          title="Creala en Kommo (seleccionando la cuenta) y después tocá Importar de Kommo"
                         >
-                          <IconSend className="h-3.5 w-3.5" /> A aprobación
-                        </Button>
+                          <IconAlert className="h-3.5 w-3.5" /> Crear en Kommo
+                        </span>
                       ) : p.estado === "approved" ? (
                         <span
                           className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-300"
@@ -360,7 +378,7 @@ function PlantillaModal({
       <div className="animate-fade-rise relative z-10 my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-xl flex-col rounded-2xl bg-surface ring-1 ring-line shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3">
           <h3 className="text-base font-semibold text-fg">
-            {isNew ? "Nueva plantilla" : `Editar ${plantilla!.nombre}`}
+            {isNew ? "Registrar plantilla (local)" : `Editar ${plantilla!.nombre}`}
           </h3>
           <button onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-surface-2 hover:text-fg">
             <IconClose className="h-5 w-5" />
@@ -368,6 +386,14 @@ function PlantillaModal({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          {isNew && (
+            <p className="rounded-lg bg-brand-500/10 px-3 py-2 text-xs text-brand-700 dark:text-brand-300">
+              Esto guarda un <span className="font-medium">borrador local</span> en
+              SenderIO (no crea nada en Kommo). La plantilla real se crea y aprueba en
+              Kommo y después se trae con “Importar de Kommo”. Sirve para dejar listo
+              el valor estampado de antemano.
+            </p>
+          )}
           {editableEnKommo && (
             <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
               Esta plantilla ya fue creada en Kommo. Editar acá NO actualiza la copia en
