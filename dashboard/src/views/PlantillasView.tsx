@@ -37,6 +37,7 @@ export default function PlantillasView() {
   const [editing, setEditing] = useState<Plantilla | "new" | null>(null);
   const [busy, setBusy] = useState<Record<number, boolean>>({});
   const [importando, setImportando] = useState(false);
+  const [filtroBm, setFiltroBm] = useState<string>("");
 
   const bms = bmsP.data ?? [];
   const plantillas = plP.data ?? [];
@@ -112,6 +113,19 @@ export default function PlantillasView() {
           las inactivas el bot no las usa.
         </p>
         <div className="flex items-center gap-2">
+          <select
+            value={filtroBm}
+            onChange={(e) => setFiltroBm(e.target.value)}
+            className="rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+            title="Filtrar por BM"
+          >
+            <option value="">Todos los BM</option>
+            {porBm.map(([bmId]) => (
+              <option key={bmId} value={bmId}>
+                {bmNombre(bmId)} ({bmId})
+              </option>
+            ))}
+          </select>
           <Button variant="primary" onClick={importar} disabled={importando}>
             <IconRefresh className="h-4 w-4" />
             {importando ? "Importando…" : "Importar de Kommo"}
@@ -167,7 +181,9 @@ export default function PlantillasView() {
         </Card>
       )}
 
-      {porBm.map(([bmId, lista]) => {
+      {porBm
+        .filter(([bmId]) => !filtroBm || bmId === filtroBm)
+        .map(([bmId, lista]) => {
         const activas = lista.filter((p) => p.activo).length;
         return (
           <Card key={bmId} className="overflow-hidden">
