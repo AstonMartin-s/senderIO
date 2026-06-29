@@ -337,6 +337,7 @@ function PlantillaModal({
     header: plantilla?.header ?? "",
     footer: plantilla?.footer ?? "",
     valorEstampado: plantilla?.valorEstampado ?? "",
+    estado: plantilla?.estado ?? "review",
     // Precarga: si es nueva, hereda el WABA id del BM elegido.
     wabaId: plantilla?.wabaId ?? wabaDelBm(bmInicial),
   });
@@ -371,6 +372,7 @@ function PlantillaModal({
       header: form.header || null,
       footer: form.footer || null,
       valorEstampado: form.valorEstampado || null,
+      estado: form.estado,
       wabaId: form.wabaId || null,
       botones: botones.filter((b) => b.text.trim()),
     };
@@ -448,7 +450,28 @@ function PlantillaModal({
             <ModalField label="Idioma" value={form.idioma} onChange={(v) => set("idioma", v)} placeholder="es" />
             <ModalField label="Valor estampado (PLANTILLA_ENVIADA)" value={form.valorEstampado} onChange={(v) => set("valorEstampado", v)} placeholder="dogzee_a" />
             <ModalField label="WABA id (heredado del BM)" value={form.wabaId} onChange={(v) => set("wabaId", v)} placeholder={bmSel?.wabaId ?? "se toma del BM"} />
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">
+                Estado de moderación (lo marcás vos)
+              </span>
+              <select
+                value={form.estado}
+                onChange={(e) => set("estado", e.target.value)}
+                className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+              >
+                <option value="borrador">Borrador</option>
+                <option value="review">En revisión</option>
+                <option value="approved">Aprobada</option>
+                <option value="rejected">Rechazada</option>
+                <option value="paused">Pausada</option>
+              </select>
+            </label>
           </div>
+          <p className="-mt-1 text-xs text-faint">
+            Kommo no informa el estado de aprobación por API. Marcá acá lo que ves en
+            Kommo/Meta. Solo las <span className="font-medium">Aprobadas</span> en ON
+            entran al bot al generarlo.
+          </p>
           {bmSel && (
             <p className="-mt-1 text-xs text-faint">
               Datos del BM <span className="font-medium text-muted">{bmSel.nombre || bmSel.id}</span>:

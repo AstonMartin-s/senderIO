@@ -28,6 +28,9 @@ const createSchema = z.object({
   footer: z.string().nullable().optional(),
   valorEstampado: z.string().nullable().optional(),
   activo: z.boolean().optional(),
+  // Estado de moderación editable a mano: Kommo no lo expone por API, así que
+  // el usuario lo marca según lo que ve en Kommo/Meta.
+  estado: z.enum(["borrador", "review", "approved", "rejected", "paused"]).optional(),
 });
 
 const patchSchema = createSchema.partial().omit({ bmId: true });
