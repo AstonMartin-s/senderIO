@@ -297,24 +297,29 @@ export class RealKommoClient implements KommoClient {
     const pendientes = filtradas.filter(
       (t) => t.type === "waba" && t.wabaIds.length === 0
     );
-    // En tandas chicas para no pegarle al rate limit de Kommo (~7 req/s).
-    for (let i = 0; i < pendientes.length; i += 5) {
-      await Promise.all(
-        pendientes.slice(i, i + 5).map(async (t) => {
-          try {
-            const det = await this.req(
-              `/chats/templates/${t.id}?with=review_status`
-            );
-            if (det.status === 200) {
-              const dj = (await det.json()) as RawTemplate;
-              t.wabaIds = dj.waba_selected_waba_ids ?? [];
-              if (dj.review_status != null) t.reviewStatus = dj.review_status;
-            }
-          } catch {
-            /* best-effort: si falla, queda sin wabaIds y caerá en "sin BM" */
+    // SECUENCIAL (no en paralelo): el modo paralelo disparaba 429 intermitentes
+    // de Kommo que se tragaban y dejaban plantillas sin wabaIds → "sin BM".
+    // Con reintento ante 429 garantizamos traer el WABA de todas.
+    for (const t of pendientes) {
+      for (let intento = 0; intento < 4; intento++) {
+        try {
+          const det = await this.req(
+            `/chats/templates/${t.id}?with=review_status`
+          );
+          if (det.status === 429) {
+            await new Promise((r) => setTimeout(r, 500 * (intento + 1)));
+            continue;
           }
-        })
-      );
+          if (det.status === 200) {
+            const dj = (await det.json()) as RawTemplate;
+            t.wabaIds = dj.waba_selected_waba_ids ?? [];
+            if (dj.review_status != null) t.reviewStatus = dj.review_status;
+          }
+          break;
+        } catch {
+          await new Promise((r) => setTimeout(r, 300));
+        }
+      }
     }
     return filtradas;
   }
