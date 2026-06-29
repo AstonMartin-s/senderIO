@@ -106,13 +106,13 @@ export default function PlantillasView() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <p className="min-w-0 text-sm text-muted">
           {plantillas.length} plantillas · cada una es una rama del bot. Las{" "}
           <span className="font-medium text-muted">activas</span> rotan en el envío;
           las inactivas el bot no las usa.
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={filtroBm}
             onChange={(e) => setFiltroBm(e.target.value)}
