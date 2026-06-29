@@ -290,7 +290,33 @@ export class RealKommoClient implements KommoClient {
       _embedded?: { chat_templates?: RawTemplate[] };
     };
     const all = (json._embedded?.chat_templates ?? []).map(mapTemplate);
-    return onlyWaba ? all.filter((t) => t.type === "waba") : all;
+    const filtradas = onlyWaba ? all.filter((t) => t.type === "waba") : all;
+    // El listado de Kommo NO incluye waba_selected_waba_ids; solo el detalle lo
+    // trae. Para poder asociar cada plantilla a su BM por WABA, completamos los
+    // wabaIds faltantes consultando el detalle de cada una.
+    const pendientes = filtradas.filter(
+      (t) => t.type === "waba" && t.wabaIds.length === 0
+    );
+    // En tandas chicas para no pegarle al rate limit de Kommo (~7 req/s).
+    for (let i = 0; i < pendientes.length; i += 5) {
+      await Promise.all(
+        pendientes.slice(i, i + 5).map(async (t) => {
+          try {
+            const det = await this.req(
+              `/chats/templates/${t.id}?with=review_status`
+            );
+            if (det.status === 200) {
+              const dj = (await det.json()) as RawTemplate;
+              t.wabaIds = dj.waba_selected_waba_ids ?? [];
+              if (dj.review_status != null) t.reviewStatus = dj.review_status;
+            }
+          } catch {
+            /* best-effort: si falla, queda sin wabaIds y caerá en "sin BM" */
+          }
+        })
+      );
+    }
+    return filtradas;
   }
 
   async createTemplate(input: WabaTemplateInput): Promise<KommoTemplate> {
