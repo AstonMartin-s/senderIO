@@ -57,7 +57,7 @@ export default function BmsView() {
     setBusy((s) => ({ ...s, [bm.id]: true }));
     try {
       const r = await api.generarBot(bm.id);
-      const json = JSON.stringify(r.bot);
+      const json = JSON.stringify(r.bot, null, 2);
       let copiado = false;
       try {
         await navigator.clipboard.writeText(json);
@@ -65,9 +65,23 @@ export default function BmsView() {
       } catch {
         copiado = false;
       }
+      // Además del portapapeles, descargamos el JSON como archivo (queda en tu
+      // carpeta de Descargas) por si preferís subirlo en vez de pegarlo.
+      const url = URL.createObjectURL(
+        new Blob([json], { type: "application/json" })
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `salesbot-${bm.id}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
       window.open(r.kommoUrl, "_blank");
       alert(
-        `Bot generado${copiado ? " y copiado al portapapeles" : ""}.\n\n` +
+        `Bot generado.\n` +
+          `• Descargado como salesbot-${bm.id}.json (carpeta Descargas)\n` +
+          `• ${copiado ? "Copiado al portapapeles" : "No se pudo copiar al portapapeles"}\n\n` +
           `Plantillas en rotación (el lead recibe una por vez, round-robin):\n` +
           (r.plantillasUsadas
             .map((p, i) => `  ${i + 1}. ${p.nombre} → ${p.valorEstampado}`)
