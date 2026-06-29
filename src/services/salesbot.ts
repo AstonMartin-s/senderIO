@@ -7,7 +7,7 @@ import { plantillas } from "../db/schema.js";
 import { config } from "../config.js";
 import { clonarBotRotacion } from "../kommo/salesbot-rotacion.js";
 import { getBm } from "./bm.js";
-import { asegurarValorEstampado } from "./plantillas.js";
+import { asegurarValorEstampado, marcarEnBot } from "./plantillas.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MOLDE_PATH = join(__dirname, "../kommo/__fixtures__/bot-rotacion.json");
@@ -84,6 +84,11 @@ export async function generarBot(bmId: string): Promise<GenerarBotResultado> {
       texto: p.contenido,
     })),
   });
+
+  // Las que realmente entraron en el bot (hasta MAX_RAMAS). A partir de acá el
+  // worker rota SOLO estas (enBot); el resto del BM queda fuera de la rotación.
+  const incluidas = activas.slice(0, MAX_RAMAS).map((p) => p.id);
+  await marcarEnBot(bmId, incluidas);
 
   const kommoUrl = `https://${config.kommo.subdomain}.kommo.com/settings/widgets/`;
 

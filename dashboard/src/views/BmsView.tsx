@@ -12,6 +12,7 @@ import {
   IconCheck,
   IconSend,
   IconTrash,
+  IconAlert,
 } from "../components/icons";
 import { estadoBm, estadoMeta, timeAgo, timeUntil } from "../lib/format";
 
@@ -179,7 +180,14 @@ export default function BmsView() {
 
               <div className="mt-4 flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2 ring-1 ring-line">
                 <span className="text-xs font-medium text-muted">Bot</span>
-                {bm.botListo ? (
+                {bm.botDesactualizado ? (
+                  <span
+                    className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-300"
+                    title="Cambiaste switches de plantillas. Regenerá el bot e importalo en Kommo para que el cambio tenga efecto."
+                  >
+                    <IconAlert className="h-3.5 w-3.5" /> regenerar bot (cambió la rotación)
+                  </span>
+                ) : bm.botListo ? (
                   <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-300">
                     <IconCheck className="h-3.5 w-3.5" /> importado en Kommo
                   </span>
@@ -189,6 +197,7 @@ export default function BmsView() {
                 <div className="ml-auto flex items-center gap-1.5">
                   <Button
                     size="sm"
+                    variant={bm.botDesactualizado ? "primary" : "default"}
                     disabled={busy[bm.id]}
                     onClick={() => genBot(bm)}
                     title="Genera el JSON del Salesbot y abre Kommo para importarlo"

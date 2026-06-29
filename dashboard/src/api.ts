@@ -39,6 +39,8 @@ export interface Bm {
   wabaId: string | null;
   chatSourceId: number | null;
   botListo: boolean;
+  /** El set de plantillas en rotación (switch ON) cambió respecto al bot generado. */
+  botDesactualizado?: boolean;
 }
 
 export interface GenerarBotResp {
@@ -71,7 +73,8 @@ export interface Plantilla {
   footer: string | null;
   valorEstampado: string | null;
   activo: boolean;
-  estado: string; // local | review | approved | rejected
+  enBot: boolean;
+  estado: string; // local | review | approved | rejected | borrador
   rejectReason: string | null;
   createdAt: string;
   updatedAt: string;

@@ -1,0 +1,1 @@
+ALTER TABLE "plantillas" ADD COLUMN "en_bot" boolean DEFAULT false NOT NULL;

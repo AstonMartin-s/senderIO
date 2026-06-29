@@ -10,6 +10,7 @@ import {
   siguienteIdBm,
 } from "../../services/bm.js";
 import { generarBot } from "../../services/salesbot.js";
+import { bmsDesactualizados } from "../../services/plantillas.js";
 import { notifyBmChanged } from "../../db/notify.js";
 
 const altaSchema = z.object({
@@ -52,7 +53,13 @@ const createSchema = z.object({
 const patchSchema = createSchema.partial().omit({ id: true });
 
 export async function bmRoutes(app: FastifyInstance) {
-  app.get("/api/bms", async () => getAllBms());
+  app.get("/api/bms", async () => {
+    const [bms, desact] = await Promise.all([
+      getAllBms(),
+      bmsDesactualizados(),
+    ]);
+    return bms.map((b) => ({ ...b, botDesactualizado: desact.has(b.id) }));
+  });
 
   app.get("/api/bms/:id", async (req, reply) => {
     const { id } = req.params as { id: string };

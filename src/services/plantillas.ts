@@ -76,9 +76,11 @@ export async function deletePlantilla(id: number): Promise<void> {
 
 /** Cuenta cuántas plantillas activas tiene un BM (para la rotación). */
 /**
- * Plantillas que participan de la rotación de un BM: ON (activo) + aprobadas +
- * con valorEstampado, ordenadas por id (orden estable de rotación). El worker
- * recorre esta lista en round-robin y el bot rutea según el valor estampado.
+ * Plantillas que participan de la rotación de un BM: las que están EN EL BOT
+ * generado (`enBot`) + aprobadas + con valorEstampado, ordenadas por id (orden
+ * estable). Usamos `enBot` (no `activo`) a propósito: el worker solo puede rotar
+ * lo que el bot importado en Kommo realmente sabe rutear. Cambiar el switch
+ * (activo) no afecta el envío hasta regenerar el bot.
  */
 export async function getRotacion(bmId: string): Promise<Plantilla[]> {
   const rows = await db
@@ -87,12 +89,58 @@ export async function getRotacion(bmId: string): Promise<Plantilla[]> {
     .where(
       and(
         eq(plantillas.bmId, bmId),
-        eq(plantillas.activo, true),
+        eq(plantillas.enBot, true),
         eq(plantillas.estado, "approved")
       )
     )
     .orderBy(asc(plantillas.id));
   return rows.filter((p) => !!p.valorEstampado);
+}
+
+/**
+ * Fija qué plantillas quedaron EN EL BOT recién generado: enBot=true para las
+ * incluidas, false para el resto del BM. A partir de acá el worker rota solo
+ * esas (getRotacion usa enBot).
+ */
+export async function marcarEnBot(
+  bmId: string,
+  idsIncluidas: number[]
+): Promise<void> {
+  const incluidas = new Set(idsIncluidas);
+  const todas = await db
+    .select({ id: plantillas.id, enBot: plantillas.enBot })
+    .from(plantillas)
+    .where(eq(plantillas.bmId, bmId));
+  for (const p of todas) {
+    const deberia = incluidas.has(p.id);
+    if (p.enBot !== deberia) {
+      await patchPlantilla(p.id, { enBot: deberia });
+    }
+  }
+}
+
+/**
+ * Devuelve el set de bmId cuyo bot está "desactualizado": lo que el usuario
+ * quiere en rotación (activo + aprobado + en Kommo) NO coincide con lo que está
+ * realmente en el bot generado (enBot). Una sola query para todos los BM.
+ */
+export async function bmsDesactualizados(): Promise<Set<string>> {
+  const rows = await db
+    .select({
+      bmId: plantillas.bmId,
+      activo: plantillas.activo,
+      enBot: plantillas.enBot,
+      estado: plantillas.estado,
+      kommoTemplateId: plantillas.kommoTemplateId,
+    })
+    .from(plantillas);
+  const desact = new Set<string>();
+  for (const p of rows) {
+    const intencion =
+      p.activo && p.estado === "approved" && p.kommoTemplateId != null;
+    if (intencion !== p.enBot) desact.add(p.bmId);
+  }
+  return desact;
 }
 
 export async function contarActivas(bmId: string): Promise<number> {

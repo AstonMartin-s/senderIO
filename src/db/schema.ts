@@ -137,8 +137,13 @@ export const plantillas = pgTable("plantillas", {
   footer: text("footer"),
   // Valor que el bot estampa en PLANTILLA_ENVIADA al usar esta plantilla.
   valorEstampado: text("valor_estampado"),
-  // Switch de rotación: true = el bot la usa; false = excluida.
+  // Switch de INTENCIÓN: true = el usuario la quiere en la rotación. NO afecta
+  // el envío hasta regenerar el bot (ahí se traslada a `enBot`).
   activo: boolean("activo").notNull().default(true),
+  // Estado REAL en el bot generado: true = el bot importado en Kommo tiene su
+  // rama y el worker la rota. Se fija al generar el bot. Mientras activo != enBot,
+  // el bot está "desactualizado" y hay que regenerarlo.
+  enBot: boolean("en_bot").notNull().default(false),
   // Estado de moderación: local | review | approved | rejected.
   estado: text("estado").notNull().default("local"),
   rejectReason: text("reject_reason"),
