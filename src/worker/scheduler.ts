@@ -17,6 +17,37 @@ import type { BmConfig } from "../db/schema.js";
 const timers = new Map<string, NodeJS.Timeout>();
 /** Leads tomados por algún BM en este proceso (lock simple para origen compartido). */
 const enVuelo = new Set<number>();
+/** Evita ticks solapados del mismo BM (p.ej. redeploy con dos workers o reevaluar). */
+const enProceso = new Set<string>();
+/** Polls consecutivos sin lead antes de alertar (evita falsos positivos). */
+const vaciosConsecutivos = new Map<string, number>();
+const VACIOS_ALERTA = 2;
+
+function sleep(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
+}
+
+async function buscarLeadEnOrigen(
+  kommo: ReturnType<typeof getKommoClient>,
+  pipelineId: number,
+  statusId: number
+): Promise<{ lead: Awaited<ReturnType<typeof kommo.getFirstLeadInStage>>; error: boolean }> {
+  try {
+    let lead = await kommo.getFirstLeadInStage(pipelineId, statusId);
+    if (lead) return { lead, error: false };
+    // Reintento único: cubre redeploy, API eventualmente consistente o carrera
+    // con otro tick que acaba de tomar el último lead.
+    await sleep(5_000);
+    lead = await kommo.getFirstLeadInStage(pipelineId, statusId);
+    return { lead, error: false };
+  } catch (err) {
+    console.error(
+      `[worker] error consultando origen pipeline=${pipelineId} stage=${statusId}:`,
+      err
+    );
+    return { lead: null, error: true };
+  }
+}
 
 function programar(bmId: string, enSegundos: number) {
   const prev = timers.get(bmId);
@@ -34,9 +65,23 @@ async function programarProximoNormal(bm: BmConfig) {
 }
 
 async function tick(bmId: string) {
+  if (enProceso.has(bmId)) {
+    console.log(`[worker:${bmId}] tick solapado, omitiendo`);
+    return;
+  }
+  enProceso.add(bmId);
+  try {
+    await tickInner(bmId);
+  } finally {
+    enProceso.delete(bmId);
+  }
+}
+
+async function tickInner(bmId: string) {
   const bm = await getBm(bmId);
   if (!bm || !bm.activo) {
     timers.delete(bmId);
+    vaciosConsecutivos.delete(bmId);
     console.log(`[worker:${bmId}] inactivo, reloj detenido`);
     return;
   }
@@ -69,13 +114,25 @@ async function tick(bmId: string) {
   const kommo = getKommoClient();
   // La etapa de origen puede vivir en otro pipeline (base general compartida).
   const origenPipeline = bm.stageOrigenPipelineId ?? bm.pipelineId;
-  const lead = await kommo.getFirstLeadInStage(origenPipeline, bm.stageOrigenId);
+  const { lead, error: errorOrigen } = await buscarLeadEnOrigen(
+    kommo,
+    origenPipeline,
+    bm.stageOrigenId
+  );
+
+  if (errorOrigen) {
+    // Error de API: no contamos como "sin leads", reintentamos pronto.
+    programar(bmId, 30);
+    return;
+  }
 
   if (!lead) {
+    const n = (vaciosConsecutivos.get(bmId) ?? 0) + 1;
+    vaciosConsecutivos.set(bmId, n);
     // Sin leads: no consume límite, reintenta en el próximo ciclo.
-    // Encendemos el flag (y lo logueamos) solo en la transición, para alertar
-    // en el panel sin spamear la bitácora en cada tick vacío.
-    if (!bm.sinLeads) {
+    // Alertamos solo tras VACIOS_ALERTA polls vacíos consecutivos (con reintento
+    // interno de 5s cada uno), para no disparar en redeploy o vaciado momentáneo.
+    if (n >= VACIOS_ALERTA && !bm.sinLeads) {
       await patchBm(bm.id, { sinLeads: true, sinLeadsDesde: new Date() });
       await registrarMovimiento({
         bmId: bm.id,
@@ -87,6 +144,8 @@ async function tick(bmId: string) {
     await programarProximoNormal(bm);
     return;
   }
+
+  vaciosConsecutivos.set(bmId, 0);
 
   // Había leads: si veníamos marcados como "sin leads", apagamos el flag.
   if (bm.sinLeads) {
