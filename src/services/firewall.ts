@@ -3,6 +3,7 @@ import { db } from "../db/client.js";
 import { bmConfig, logMovimientos, type BmConfig } from "../db/schema.js";
 import { minutosAleatorios } from "../lib/time.js";
 import { registrarMovimiento } from "./movimientos.js";
+import { pushEnvioAsync, pushEnvioForBmLead } from "./trazabilidad-push.js";
 
 const VENTANA_MOVIL = 20;
 
@@ -51,6 +52,12 @@ export async function aplicarResultado(
       resultado: "error_3132",
       etapaDestino: bm.stageErrorId,
     });
+    if (leadId != null) {
+      pushEnvioAsync(
+        () => pushEnvioForBmLead(bm.id, leadId),
+        `error ${bm.id}:${leadId}`
+      );
+    }
 
     const erroresConsecutivos = bm.erroresConsecutivos + 1;
     const erroresHoy = bm.erroresHoy + 1;
@@ -105,6 +112,12 @@ export async function aplicarResultado(
     resultado: "ok",
     etapaDestino: tipo === "si" ? bm.stageSiId : bm.stageNoId,
   });
+  if (leadId != null) {
+    pushEnvioAsync(
+      () => pushEnvioForBmLead(bm.id, leadId),
+      `resultado ${tipo} ${bm.id}:${leadId}`
+    );
+  }
   const pct = await computePctErrorMovil(bm.id);
   const rows = await db
     .update(bmConfig)

@@ -27,4 +27,9 @@ export const config = {
     adminPassword: process.env.ADMIN_PASSWORD ?? "changeme",
   },
   tz: process.env.TZ ?? "America/Argentina/Cordoba",
+  trazabilidad: {
+    apiUrl: process.env.TRAZABILIDAD_API_URL ?? "",
+    ingestApiKey: process.env.TRAZABILIDAD_INGEST_API_KEY ?? "",
+    pushEnabled: process.env.TRAZABILIDAD_PUSH_ENABLED === "true",
+  },
 } as const;

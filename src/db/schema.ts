@@ -103,10 +103,11 @@ export const logMovimientos = pgTable("log_movimientos", {
   telefono: text("telefono"),
   // Etiqueta/lista del lead en Kommo (ej. "Lista12"), capturada al enviar.
   segmento: text("segmento"),
-  // Plantilla efectivamente enviada (la que el Salesbot estampa en el lead).
-  // Se completa de forma diferida por la pasada de reconciliación (jobs/plantillas).
-  // Null hasta que se resuelve; permite rotar plantillas en Kommo sin hardcodear.
+  // Plantilla efectivamente enviada (valor estampado en PLANTILLA_ENVIADA).
   plantilla: text("plantilla"),
+  // Nombre y texto de la plantilla al momento del envío (para trazabilidad).
+  templateNombre: text("template_nombre"),
+  mensajeEnviado: text("mensaje_enviado"),
   // movido_a_envio | resultado_si | resultado_no | resultado_error | pausa_bm
   accion: text("accion").notNull(),
   // ok | error_3132 | sin_leads

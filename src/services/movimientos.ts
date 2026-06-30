@@ -20,6 +20,8 @@ export async function registrarMovimiento(params: {
   telefono?: string | null;
   segmento?: string | null;
   plantilla?: string | null;
+  templateNombre?: string | null;
+  mensajeEnviado?: string | null;
 }): Promise<void> {
   await db.insert(logMovimientos).values({
     bmId: params.bmId,
@@ -30,5 +32,7 @@ export async function registrarMovimiento(params: {
     telefono: params.telefono ?? null,
     segmento: params.segmento ?? null,
     plantilla: params.plantilla ?? null,
+    templateNombre: params.templateNombre ?? null,
+    mensajeEnviado: params.mensajeEnviado ?? null,
   });
 }

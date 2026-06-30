@@ -5,25 +5,19 @@ import { bmConfig, logMovimientos, plantillas } from "../../db/schema.js";
 import { getKpis, computeSnapshot, computeRange } from "../../services/kpis.js";
 import { getKommoClient } from "../../kommo/index.js";
 import { todayLocal } from "../../lib/time.js";
-
-/** Timestamp en ISO 8601 con huso fijo de Argentina (-03:00). */
-function toIsoAr(d: Date | string | null | undefined): string {
-  if (!d) return "";
-  const date = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(date.getTime())) return "";
-  const shifted = new Date(date.getTime() - 3 * 3_600_000);
-  return `${shifted.toISOString().slice(0, 19)}-03:00`;
-}
+import {
+  aggregateGrupos,
+  buildEnvioFromGrupo,
+  buildPlantillaMap,
+  envioToCsvRow,
+  resolvePlantilla,
+  TRAZABILIDAD_CSV_HEADER,
+} from "../../services/trazabilidad.js";
 
 const csvEsc = (v: unknown) => {
   const s = v == null ? "" : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
-
-// Costo fijo por mensaje de Marketing-lite, derivado de pmp_metrics
-// (≈ 6,18 $ cada 100 mensajes). Se cobra sobre envíos entregados (no failed).
-const COSTO_POR_MENSAJE = "0.0618";
-const MONEDA = "USD";
 
 export async function kpiRoutes(app: FastifyInstance) {
   // KPIs históricos archivados.
@@ -136,123 +130,21 @@ export async function kpiRoutes(app: FastifyInstance) {
       db.select().from(plantillas),
     ]);
     const bmById = new Map(bms.map((b) => [b.id, b]));
-    // Mapa para resolver la plantilla efectivamente enviada: el bot estampa el
-    // `valorEstampado` en el lead, que la reconciliación copia a log.plantilla.
-    // Cruzamos por (bmId :: valorEstampado) y, como respaldo, por (bmId :: nombre).
-    const plBy = new Map<string, { nombre: string; contenido: string }>();
-    for (const p of plts) {
-      const v = { nombre: p.nombre, contenido: p.contenido };
-      if (p.valorEstampado) plBy.set(`${p.bmId}::${p.valorEstampado}`, v);
-      plBy.set(`${p.bmId}::${p.nombre}`, v);
-    }
+    const plBy = buildPlantillaMap(plts);
+    const grupos = aggregateGrupos(rows);
 
-    // Agrupar por (bm, lead): el envío + su resultado posterior.
-    type Agg = {
-      bmId: string;
-      leadId: number;
-      tsEnviado: Date | null;
-      telefono: string | null;
-      segmento: string | null;
-      plantilla: string | null;
-      resultado: "si" | "no" | "error" | null;
-      tsResultado: Date | null;
-    };
-    const grupos = new Map<string, Agg>();
-    for (const r of rows) {
-      if (r.leadId == null) continue;
-      const key = `${r.bmId}::${r.leadId}`;
-      let g = grupos.get(key);
-      if (!g) {
-        g = {
-          bmId: r.bmId,
-          leadId: r.leadId,
-          tsEnviado: null,
-          telefono: null,
-          segmento: null,
-          plantilla: null,
-          resultado: null,
-          tsResultado: null,
-        };
-        grupos.set(key, g);
-      }
-      const ts = r.ts instanceof Date ? r.ts : new Date(r.ts);
-      if (r.accion === "movido_a_envio") {
-        if (!g.tsEnviado) g.tsEnviado = ts;
-        if (r.telefono) g.telefono = r.telefono;
-        if (r.segmento) g.segmento = r.segmento;
-        if (r.plantilla) g.plantilla = r.plantilla;
-      } else if (r.accion === "resultado_si") {
-        g.resultado = "si";
-        g.tsResultado = ts;
-      } else if (r.accion === "resultado_no") {
-        g.resultado = "no";
-        g.tsResultado = ts;
-      } else if (r.accion === "resultado_error") {
-        g.resultado = "error";
-        g.tsResultado = ts;
-      }
-    }
-
-    const header = [
-      "fuente_envio",
-      "plataforma",
-      "campaign_id_externo",
-      "campaign_nombre",
-      "template_nombre",
-      "telefono",
-      "es_interno",
-      "segmento",
-      "message_id",
-      "ts_enviado",
-      "ts_entregado",
-      "ts_leido",
-      "ts_primera_respuesta",
-      "estado_final",
-      "error_codigo",
-      "error_motivo",
-      "conversacion_id",
-      "costo",
-      "moneda",
-    ].join(",");
+    const header = TRAZABILIDAD_CSV_HEADER.join(",");
 
     const body = [...grupos.values()]
-      // Sólo filas con envío real (movido_a_envio).
       .filter((g) => g.tsEnviado)
-      .sort((a, b) => (a.tsEnviado!.getTime() - b.tsEnviado!.getTime()))
+      .sort((a, b) => a.tsEnviado!.getTime() - b.tsEnviado!.getTime())
       .map((g) => {
         const bm = bmById.get(g.bmId);
-        const respondio = g.resultado === "si" || g.resultado === "no";
-        const fallo = g.resultado === "error";
-        const estadoFinal = fallo ? "failed" : respondio ? "read" : "sent";
-        const tsResp = respondio ? toIsoAr(g.tsResultado) : "";
-        const fuente = bm?.fuenteEnvio ?? "crm";
-        // Plantilla enviada (cargada en la sección Plantillas), cruzada por lo
-        // que el bot estampó en el lead.
-        const pl = g.plantilla ? plBy.get(`${g.bmId}::${g.plantilla}`) : undefined;
-        return [
-          fuente, // fuente_envio (crm interna | spam externa)
-          bm?.plataforma ?? "mooney", // plataforma
-          bm?.campaignId ?? g.bmId, // campaign_id_externo
-          bm?.campaignNombre ?? bm?.nombre ?? g.bmId, // campaign_nombre
-          pl?.nombre ?? g.plantilla ?? "", // template_nombre (nombre de la plantilla enviada)
-          g.telefono ?? "", // telefono (clave de cruce)
-          fuente === "crm" ? "true" : "false", // es_interno (derivado del origen)
-          g.segmento ?? "", // segmento (etiqueta/lista del lead)
-          `senderio:${g.bmId}:${g.leadId}`, // message_id (surrogate estable)
-          toIsoAr(g.tsEnviado), // ts_enviado
-          pl?.contenido ?? "", // ts_entregado := texto/cuerpo de la plantilla (definido así por el contrato de trazabilidad)
-          respondio ? toIsoAr(g.tsResultado) : "", // ts_leido
-          tsResp, // ts_primera_respuesta
-          estadoFinal, // estado_final
-          fallo ? "3132" : "", // error_codigo
-          fallo ? "Error de envío (3132)" : "", // error_motivo
-          g.leadId, // conversacion_id = Lead ID de Kommo
-          fallo ? "" : COSTO_POR_MENSAJE, // costo (solo si no falló)
-          fallo ? "" : MONEDA, // moneda
-        ]
-          .map(csvEsc)
-          .join(",");
+        if (!bm) return null;
+        const pl = resolvePlantilla(g, plBy);
+        return envioToCsvRow(buildEnvioFromGrupo(g, bm, pl), csvEsc);
       })
+      .filter((row): row is string => row != null)
       .join("\n");
 
     const csv = `${header}\n${body}\n`;

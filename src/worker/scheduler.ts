@@ -1,6 +1,10 @@
 import { getBm, getActiveBms, patchBm, setProximoTick } from "../services/bm.js";
 import { registrarMovimiento } from "../services/movimientos.js";
 import { getRotacion } from "../services/plantillas.js";
+import {
+  pushEnvioAsync,
+  pushEnvioFromTick,
+} from "../services/trazabilidad-push.js";
 import { config } from "../config.js";
 import { getKommoClient } from "../kommo/index.js";
 import {
@@ -110,6 +114,8 @@ async function tick(bmId: string) {
     // va de una en una. Si no hay campo configurado o plantillas en rotación, el
     // bot usa su comportamiento por defecto.
     let plantillaValor: string | null = null;
+    let templateNombre: string | null = null;
+    let mensajeEnviado: string | null = null;
     let avanzarRotacion = false;
     const cfId = config.kommo.cfPlantillaId;
     if (cfId) {
@@ -117,6 +123,8 @@ async function tick(bmId: string) {
       if (rotacion.length > 0) {
         const elegida = rotacion[bm.rotacionIdx % rotacion.length];
         plantillaValor = elegida.valorEstampado;
+        templateNombre = elegida.nombre;
+        mensajeEnviado = elegida.contenido;
         avanzarRotacion = true;
         await kommo
           .setCampoLead(lead.id, cfId, plantillaValor!)
@@ -127,6 +135,7 @@ async function tick(bmId: string) {
     }
 
     await kommo.moveLead(lead.id, bm.pipelineId, bm.stageDestinoId);
+    const tsEnviado = new Date();
     await registrarMovimiento({
       bmId: bm.id,
       leadId: lead.id,
@@ -136,7 +145,25 @@ async function tick(bmId: string) {
       telefono: meta.telefono,
       segmento: meta.segmento,
       plantilla: plantillaValor,
+      templateNombre,
+      mensajeEnviado,
     });
+    if (meta.telefono) {
+      pushEnvioAsync(
+        () =>
+          pushEnvioFromTick(
+            bm,
+            lead.id,
+            tsEnviado,
+            meta.telefono!,
+            meta.segmento,
+            plantillaValor,
+            templateNombre,
+            mensajeEnviado
+          ),
+        `envío ${bm.id}:${lead.id}`
+      );
+    }
     await patchBm(bm.id, {
       enviadosHoy: bm.enviadosHoy + 1,
       ultimoEnvio: new Date(),
