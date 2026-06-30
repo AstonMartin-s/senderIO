@@ -88,6 +88,9 @@ export interface Movimiento {
   accion: string;
   resultado: string | null;
   etapaDestino: number | null;
+  plantilla: string | null;
+  telefono: string | null;
+  segmento: string | null;
 }
 
 export interface KpiFila {

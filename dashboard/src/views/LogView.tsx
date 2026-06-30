@@ -6,6 +6,7 @@ import {
   type KpiFila,
   type LogFiltro,
   type Movimiento,
+  type Plantilla,
 } from "../api";
 import { Card } from "../components/ui";
 import { IconDownload } from "../components/icons";
@@ -35,6 +36,7 @@ export default function LogView() {
 
   const bmsQ = usePolling<Bm[]>(api.bms, 10000);
   const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 4000);
+  const plQ = usePolling<Plantilla[]>(() => api.plantillas(), 15000);
   const { data, refresh } = usePolling<Movimiento[]>(
     () => api.movimientos(500, filtro),
     3000
@@ -46,6 +48,15 @@ export default function LogView() {
 
   const rows = data ?? [];
   const bms = bmsQ.data ?? [];
+  // El worker estampa el `valorEstampado` en cada movimiento; lo resolvemos al
+  // nombre legible de la plantilla para ver de un vistazo qué rotó.
+  const nombrePlantilla = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of plQ.data ?? []) {
+      if (p.valorEstampado) m.set(`${p.bmId}::${p.valorEstampado}`, p.nombre);
+    }
+    return m;
+  }, [plQ.data]);
   const total =
     (kpiQ.data ?? []).find((k) => k.bmId === "TOTAL") ??
     ({ enviados: 0, si: 0, no: 0, errores: 0, pctError: 0, pctSi: 0 } as KpiFila);
@@ -135,6 +146,7 @@ export default function LogView() {
                 <th className="px-2 py-2.5 font-medium">BM</th>
                 <th className="px-2 py-2.5 font-medium">Acción</th>
                 <th className="px-2 py-2.5 font-medium">Lead</th>
+                <th className="px-2 py-2.5 font-medium">Plantilla</th>
                 <th className="px-5 py-2.5 text-right font-medium">Detalle</th>
               </tr>
             </thead>
@@ -163,6 +175,16 @@ export default function LogView() {
                     <td className="px-2 py-3 text-muted tabular-nums">
                       {m.leadId ? `lead ${m.leadId}` : "—"}
                     </td>
+                    <td className="px-2 py-3">
+                      {m.plantilla ? (
+                        <span className="inline-flex max-w-[220px] items-center truncate rounded-md bg-brand-500/10 px-2 py-0.5 text-xs font-medium text-brand-600 dark:text-brand-300">
+                          {nombrePlantilla.get(`${m.bmId}::${m.plantilla}`) ??
+                            m.plantilla}
+                        </span>
+                      ) : (
+                        <span className="text-faint">—</span>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-right text-xs text-faint">
                       {m.resultado ?? ""}
                       {m.etapaDestino ? ` · → ${m.etapaDestino}` : ""}
@@ -173,7 +195,7 @@ export default function LogView() {
               {rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="px-5 py-12 text-center text-faint"
                   >
                     Sin movimientos todavía.
