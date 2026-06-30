@@ -38,6 +38,7 @@ export default function PlantillasView() {
   const [busy, setBusy] = useState<Record<number, boolean>>({});
   const [importando, setImportando] = useState(false);
   const [filtroBm, setFiltroBm] = useState<string>("");
+  const [filtroEstado, setFiltroEstado] = useState<string>("");
 
   const bms = bmsP.data ?? [];
   const plantillas = plP.data ?? [];
@@ -60,6 +61,17 @@ export default function PlantillasView() {
     setBusy((s) => ({ ...s, [p.id]: true }));
     try {
       await api.patchPlantilla(p.id, { activo: !p.activo });
+      plP.refresh();
+    } finally {
+      setBusy((s) => ({ ...s, [p.id]: false }));
+    }
+  }
+
+  async function cambiarEstado(p: Plantilla, estado: string) {
+    if (estado === p.estado) return;
+    setBusy((s) => ({ ...s, [p.id]: true }));
+    try {
+      await api.patchPlantilla(p.id, { estado } as Partial<Plantilla>);
       plP.refresh();
     } finally {
       setBusy((s) => ({ ...s, [p.id]: false }));
@@ -174,6 +186,46 @@ export default function PlantillasView() {
         </div>
       </Card>
 
+      {(() => {
+        const base = plantillas.filter((p) => !filtroBm || p.bmId === filtroBm);
+        const cuenta = (e: string) =>
+          e ? base.filter((p) => p.estado === e).length : base.length;
+        const tabs: { id: string; label: string }[] = [
+          { id: "", label: "Todas" },
+          { id: "review", label: "En revisión" },
+          { id: "approved", label: "Aprobadas" },
+          { id: "rejected", label: "Rechazadas" },
+          { id: "borrador", label: "Borrador" },
+        ];
+        return (
+          <div className="flex flex-wrap gap-1.5">
+            {tabs.map((t) => {
+              const activa = filtroEstado === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setFiltroEstado(t.id)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    activa
+                      ? "bg-brand-500 text-white shadow-sm"
+                      : "bg-surface-2 text-muted ring-1 ring-line hover:text-fg"
+                  }`}
+                >
+                  {t.label}
+                  <span
+                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] ${
+                      activa ? "bg-white/20" : "bg-line-strong/40"
+                    }`}
+                  >
+                    {cuenta(t.id)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {porBm.length === 0 && (
         <Card className="p-10 text-center text-sm text-muted">
           No hay plantillas todavía. Creá la primera en Kommo y después tocá{" "}
@@ -183,7 +235,11 @@ export default function PlantillasView() {
 
       {porBm
         .filter(([bmId]) => !filtroBm || bmId === filtroBm)
-        .map(([bmId, lista]) => {
+        .map(([bmId, listaTodas]) => {
+        const lista = listaTodas.filter(
+          (p) => !filtroEstado || p.estado === filtroEstado
+        );
+        if (lista.length === 0) return null;
         const activas = lista.filter((p) => p.activo).length;
         return (
           <Card key={bmId} className="overflow-hidden">
@@ -214,11 +270,19 @@ export default function PlantillasView() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-fg">{p.nombre}</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${est.cls}`}
+                        <select
+                          value={p.estado}
+                          disabled={busy[p.id]}
+                          onChange={(e) => cambiarEstado(p, e.target.value)}
+                          title="Cambiar estado de moderación (lo marcás vos; Kommo no lo informa)"
+                          className={`cursor-pointer rounded-full border-0 px-2 py-0.5 text-[11px] font-semibold outline-none ring-1 ring-inset ring-transparent focus:ring-brand-500/40 ${est.cls}`}
                         >
-                          {est.label}
-                        </span>
+                          <option value="review">En revisión</option>
+                          <option value="approved">Aprobada</option>
+                          <option value="rejected">Rechazada</option>
+                          <option value="borrador">Borrador</option>
+                          <option value="paused">Pausada</option>
+                        </select>
                         <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[11px] text-faint ring-1 ring-line">
                           {p.categoria} · {p.idioma}
                         </span>
