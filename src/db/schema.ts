@@ -10,6 +10,7 @@ import {
   date,
   timestamp,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 
 /**
@@ -93,27 +94,31 @@ export const bmConfig = pgTable("bm_config", {
  * log_movimientos: bitácora de cada acción del orquestador y de cada resultado
  * recibido por webhook.
  */
-export const logMovimientos = pgTable("log_movimientos", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
-  bmId: text("bm_id").notNull(),
-  leadId: bigint("lead_id", { mode: "number" }),
-  // Teléfono del lead en E.164, capturado al mover a envío (clave de cruce
-  // para la trazabilidad). Null si no se pudo resolver desde Kommo.
-  telefono: text("telefono"),
-  // Etiqueta/lista del lead en Kommo (ej. "Lista12"), capturada al enviar.
-  segmento: text("segmento"),
-  // Plantilla efectivamente enviada (valor estampado en PLANTILLA_ENVIADA).
-  plantilla: text("plantilla"),
-  // Nombre y texto de la plantilla al momento del envío (para trazabilidad).
-  templateNombre: text("template_nombre"),
-  mensajeEnviado: text("mensaje_enviado"),
-  // movido_a_envio | resultado_si | resultado_no | resultado_error | pausa_bm
-  accion: text("accion").notNull(),
-  // ok | error_3132 | sin_leads
-  resultado: text("resultado"),
-  etapaDestino: bigint("etapa_destino", { mode: "number" }),
-});
+export const logMovimientos = pgTable(
+  "log_movimientos",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
+    bmId: text("bm_id").notNull(),
+    leadId: bigint("lead_id", { mode: "number" }),
+    // Teléfono del lead en E.164, capturado al mover a envío (clave de cruce
+    // para la trazabilidad). Null si no se pudo resolver desde Kommo.
+    telefono: text("telefono"),
+    // Etiqueta/lista del lead en Kommo (ej. "Lista12"), capturada al enviar.
+    segmento: text("segmento"),
+    // Plantilla efectivamente enviada (valor estampado en PLANTILLA_ENVIADA).
+    plantilla: text("plantilla"),
+    // Nombre y texto de la plantilla al momento del envío (para trazabilidad).
+    templateNombre: text("template_nombre"),
+    mensajeEnviado: text("mensaje_enviado"),
+    // movido_a_envio | resultado_si | resultado_no | resultado_error | pausa_bm
+    accion: text("accion").notNull(),
+    // ok | error_3132 | sin_leads
+    resultado: text("resultado"),
+    etapaDestino: bigint("etapa_destino", { mode: "number" }),
+  },
+  (t) => [index("log_movimientos_ts_idx").on(t.ts)]
+);
 
 /**
  * plantillas: plantillas WABA por BM. Cada plantilla es una "rama" del bot con

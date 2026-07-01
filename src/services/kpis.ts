@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { kpiSnapshots, logMovimientos } from "../db/schema.js";
 import { config } from "../config.js";
@@ -12,6 +12,20 @@ export interface KpiFila {
   pctError: number;
   pctSi: number;
 }
+
+const ACCIONES_KPI = [
+  "movido_a_envio",
+  "resultado_si",
+  "resultado_no",
+  "resultado_error",
+] as const;
+
+/** Columnas mínimas para agregar KPIs (sin mensaje_enviado ni otros textos largos). */
+const colsKpi = {
+  bmId: logMovimientos.bmId,
+  accion: logMovimientos.accion,
+  ts: logMovimientos.ts,
+};
 
 function localDate(d: Date, tz = config.tz): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -31,9 +45,15 @@ export async function computeSnapshot(fechaLocal: string): Promise<KpiFila[]> {
   hasta.setUTCDate(hasta.getUTCDate() + 2);
 
   const rows = await db
-    .select()
+    .select(colsKpi)
     .from(logMovimientos)
-    .where(and(gte(logMovimientos.ts, desde), lte(logMovimientos.ts, hasta)));
+    .where(
+      and(
+        gte(logMovimientos.ts, desde),
+        lte(logMovimientos.ts, hasta),
+        inArray(logMovimientos.accion, [...ACCIONES_KPI])
+      )
+    );
 
   const porBm = new Map<string, KpiFila>();
   const ensure = (bmId: string) => {
@@ -158,9 +178,14 @@ export async function computeRange(
   if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
   if (hasta) conds.push(lte(logMovimientos.ts, new Date(hasta)));
   const rows = await db
-    .select()
+    .select(colsKpi)
     .from(logMovimientos)
-    .where(conds.length ? and(...conds) : undefined);
+    .where(
+      and(
+        ...(conds.length ? conds : []),
+        inArray(logMovimientos.accion, [...ACCIONES_KPI])
+      )
+    );
   return agregar(rows);
 }
 

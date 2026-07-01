@@ -37,8 +37,8 @@ export default function LogView() {
   const bmsQ = usePolling<Bm[]>(api.bms, 10000);
   const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 4000);
   const plQ = usePolling<Plantilla[]>(() => api.plantillas(), 15000);
-  const { data, refresh } = usePolling<Movimiento[]>(
-    () => api.movimientos(500, filtro),
+  const { data, refresh, loading, error } = usePolling<Movimiento[]>(
+    () => api.movimientos(200, filtro),
     3000
   );
   // Refrescá al instante cuando cambia algún filtro (sin esperar al próximo poll).
@@ -139,6 +139,16 @@ export default function LogView() {
           </div>
         </div>
         <div className="max-h-[64vh] overflow-y-auto">
+          {(loading && rows.length === 0) && (
+            <div className="px-5 py-8 text-center text-sm text-faint">
+              Cargando movimientos…
+            </div>
+          )}
+          {error && rows.length === 0 && (
+            <div className="px-5 py-8 text-center text-sm text-rose-600 dark:text-rose-300">
+              Error al cargar: {error}
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-surface/90 backdrop-blur">
               <tr className="text-left text-[11px] uppercase tracking-wider text-faint">

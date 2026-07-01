@@ -47,7 +47,7 @@ export default function FunnelView() {
   );
   const rango = !!(desde || hasta);
 
-  const { data, refresh } = usePolling<KpiFila[]>(
+  const { data, refresh, loading, error } = usePolling<KpiFila[]>(
     () => api.kpisRango(filtro),
     5000
   );
@@ -103,6 +103,16 @@ export default function FunnelView() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {(loading && !total) && (
+          <div className="col-span-full px-1 text-sm text-faint">
+            Cargando KPIs…
+          </div>
+        )}
+        {error && !total && (
+          <div className="col-span-full px-1 text-sm text-rose-600 dark:text-rose-300">
+            Error al cargar KPIs: {error}
+          </div>
+        )}
         <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold text-fg">
             Embudo consolidado ({rango ? "período" : "hoy"})

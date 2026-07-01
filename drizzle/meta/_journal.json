@@ -92,6 +92,13 @@
       "when": 1782750000000,
       "tag": "0012_trazabilidad_campos",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782940768784,
+      "tag": "0013_glamorous_cardiac",
+      "breakpoints": true
     }
   ]
 }

@@ -38,7 +38,7 @@ export async function kpiRoutes(app: FastifyInstance) {
     return computeRange(q.desde, q.hasta);
   });
 
-  // Log de movimientos en vivo.
+  // Log de movimientos en vivo (sin mensaje_enviado: textos largos que frenan el panel).
   app.get("/api/movimientos", async (req) => {
     const q = req.query as {
       bm?: string;
@@ -52,7 +52,19 @@ export async function kpiRoutes(app: FastifyInstance) {
     if (q.desde) conds.push(gte(logMovimientos.ts, new Date(q.desde)));
     if (q.hasta) conds.push(lte(logMovimientos.ts, new Date(q.hasta)));
     return db
-      .select()
+      .select({
+        id: logMovimientos.id,
+        ts: logMovimientos.ts,
+        bmId: logMovimientos.bmId,
+        leadId: logMovimientos.leadId,
+        telefono: logMovimientos.telefono,
+        segmento: logMovimientos.segmento,
+        plantilla: logMovimientos.plantilla,
+        templateNombre: logMovimientos.templateNombre,
+        accion: logMovimientos.accion,
+        resultado: logMovimientos.resultado,
+        etapaDestino: logMovimientos.etapaDestino,
+      })
       .from(logMovimientos)
       .where(conds.length ? and(...conds) : undefined)
       .orderBy(desc(logMovimientos.ts))
