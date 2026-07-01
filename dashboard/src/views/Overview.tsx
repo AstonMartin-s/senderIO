@@ -4,8 +4,8 @@ import { IconSend, IconCheck, IconAlert, IconLayers } from "../components/icons"
 import { estadoBm, estadoMeta, timeAgo } from "../lib/format";
 
 export default function Overview() {
-  const bmsQ = usePolling<Bm[]>(api.bms, 4000);
-  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 4000);
+  const bmsQ = usePolling<Bm[]>(api.bms, 8000);
+  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 10000);
 
   const bms = bmsQ.data ?? [];
   const kpis = kpiQ.data ?? [];

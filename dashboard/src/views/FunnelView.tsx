@@ -49,7 +49,7 @@ export default function FunnelView() {
 
   const { data, refresh, loading, error } = usePolling<KpiFila[]>(
     () => api.kpisRango(filtro),
-    5000
+    12000
   );
   useEffect(() => {
     refresh();

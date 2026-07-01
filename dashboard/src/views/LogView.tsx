@@ -34,12 +34,12 @@ export default function LogView() {
     [bm, desde, hasta]
   );
 
-  const bmsQ = usePolling<Bm[]>(api.bms, 10000);
-  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 4000);
-  const plQ = usePolling<Plantilla[]>(() => api.plantillas(), 15000);
+  const bmsQ = usePolling<Bm[]>(api.bms, 15000);
+  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 10000);
+  const plQ = usePolling<Plantilla[]>(() => api.plantillas(), 30000);
   const { data, refresh, loading, error } = usePolling<Movimiento[]>(
     () => api.movimientos(200, filtro),
-    3000
+    8000
   );
   // Refrescá al instante cuando cambia algún filtro (sin esperar al próximo poll).
   useEffect(() => {

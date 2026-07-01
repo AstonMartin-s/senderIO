@@ -17,7 +17,7 @@ import {
 import { estadoBm, estadoMeta, timeAgo, timeUntil } from "../lib/format";
 
 export default function BmsView() {
-  const { data, refresh, mutate } = usePolling<Bm[]>(api.bms, 4000);
+  const { data, refresh, mutate } = usePolling<Bm[]>(api.bms, 8000);
   const [editing, setEditing] = useState<Bm | "new" | null>(null);
   const [altaAuto, setAltaAuto] = useState(false);
   const [busy, setBusy] = useState<Record<string, boolean>>({});

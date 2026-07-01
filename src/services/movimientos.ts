@@ -21,6 +21,10 @@ export async function registrarMovimiento(params: {
   segmento?: string | null;
   plantilla?: string | null;
   templateNombre?: string | null;
+  // Aceptado por compatibilidad pero NO se persiste: el cuerpo de la plantilla es
+  // el mismo para todos los envíos de un valorEstampado, así que se reconstruye en
+  // el export desde la tabla `plantillas` (ver resolvePlantilla). Guardarlo por
+  // fila inflaba log_movimientos sin aportar información nueva.
   mensajeEnviado?: string | null;
 }): Promise<void> {
   await db.insert(logMovimientos).values({
@@ -33,6 +37,5 @@ export async function registrarMovimiento(params: {
     segmento: params.segmento ?? null,
     plantilla: params.plantilla ?? null,
     templateNombre: params.templateNombre ?? null,
-    mensajeEnviado: params.mensajeEnviado ?? null,
   });
 }
