@@ -21,6 +21,11 @@ async function postEnvios(envios: EnvioTrazabilidad[]): Promise<void> {
   const validos = envios.filter((e) => e.telefono && e.message_id);
   if (validos.length === 0) return;
 
+  // No mandamos el cuerpo del mensaje: viaja solo `template_nombre` y el receptor
+  // reconstruye el texto desde su catálogo de plantillas. Evita duplicar el
+  // contenido en cada envío.
+  const payload = validos.map(({ mensaje_enviado: _omit, ...resto }) => resto);
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -30,7 +35,7 @@ async function postEnvios(envios: EnvioTrazabilidad[]): Promise<void> {
   const res = await fetch(`${base.replace(/\/$/, "")}/api/v1/spam/envios`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ origen: "senderio", envios: validos }),
+    body: JSON.stringify({ origen: "senderio", envios: payload }),
   });
 
   if (!res.ok) {
