@@ -103,17 +103,16 @@ async function postPlantillas(items: PlantillaCatalogo[]): Promise<void> {
   if (key) headers.Authorization = `Bearer ${key}`;
 
   const url = `${base.replace(/\/$/, "")}/api/v1/spam/plantillas`;
-  for (const item of validos) {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(item),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("[trazabilidad-push] plantilla error", res.status, text);
-      throw new Error(`Trazabilidad plantilla push failed: ${res.status}`);
-    }
+  // El receptor espera el lote envuelto en `{ plantillas: [...] }`.
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ plantillas: validos }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("[trazabilidad-push] plantilla error", res.status, text);
+    throw new Error(`Trazabilidad plantilla push failed: ${res.status}`);
   }
 }
 
