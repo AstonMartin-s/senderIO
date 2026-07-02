@@ -80,6 +80,100 @@ export async function pushEnvio(envio: EnvioTrazabilidad): Promise<void> {
   await postEnvios([envio]);
 }
 
+// --- Catálogo de plantillas (template_nombre -> contenido) ---------------------
+// El programa de trazabilidad reconstruye el texto de cada envío buscando por
+// (template_nombre, plataforma) en su catálogo. Le mandamos ese catálogo cuando
+// una plantilla se crea/edita/aprueba, y en un sync inicial.
+
+export type PlantillaCatalogo = {
+  template_nombre: string;
+  plataforma: string;
+  contenido: string;
+};
+
+async function postPlantillas(items: PlantillaCatalogo[]): Promise<void> {
+  const base = config.trazabilidad.apiUrl;
+  if (!base || !config.trazabilidad.pushEnabled) return;
+
+  const validos = items.filter((p) => p.template_nombre && p.contenido);
+  if (validos.length === 0) return;
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = config.trazabilidad.ingestApiKey;
+  if (key) headers.Authorization = `Bearer ${key}`;
+
+  const url = `${base.replace(/\/$/, "")}/api/v1/spam/plantillas`;
+  for (const item of validos) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(item),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("[trazabilidad-push] plantilla error", res.status, text);
+      throw new Error(`Trazabilidad plantilla push failed: ${res.status}`);
+    }
+  }
+}
+
+function buildPlantillaCatalogo(
+  p: { nombre: string; contenido: string | null },
+  bm: BmConfig | undefined
+): PlantillaCatalogo {
+  return {
+    template_nombre: p.nombre,
+    plataforma: bm?.plataforma ?? "mooney",
+    contenido: p.contenido ?? "",
+  };
+}
+
+/** Push del catálogo de una sola plantilla (resuelve plataforma desde su BM). */
+export async function pushPlantillaCatalogo(p: {
+  bmId: string;
+  nombre: string;
+  contenido: string | null;
+}): Promise<void> {
+  if (!config.trazabilidad.pushEnabled || !config.trazabilidad.apiUrl) return;
+  const bm = await getBm(p.bmId);
+  await postPlantillas([buildPlantillaCatalogo(p, bm)]);
+}
+
+/** Sincroniza TODO el catálogo de plantillas con contenido. Devuelve cuántas mandó. */
+export async function syncPlantillasCatalogo(): Promise<number> {
+  if (!config.trazabilidad.pushEnabled || !config.trazabilidad.apiUrl) return 0;
+
+  const [plts, bms] = await Promise.all([
+    db.select().from(plantillas),
+    db.select().from(bmConfig),
+  ]);
+  const bmById = new Map(bms.map((b) => [b.id, b]));
+
+  const items = plts
+    .filter((p) => p.contenido)
+    .map((p) => buildPlantillaCatalogo(p, bmById.get(p.bmId)));
+
+  if (items.length === 0) return 0;
+
+  const BATCH = 50;
+  for (let i = 0; i < items.length; i += BATCH) {
+    await postPlantillas(items.slice(i, i + BATCH));
+  }
+  return items.length;
+}
+
+/** Wrapper no bloqueante para el hot path del panel. */
+export function pushPlantillaAsync(p: {
+  bmId: string;
+  nombre: string;
+  contenido: string | null;
+}): void {
+  if (!config.trazabilidad.pushEnabled || !config.trazabilidad.apiUrl) return;
+  pushPlantillaCatalogo(p).catch((e) =>
+    console.error(`[trazabilidad-push] plantilla ${p.bmId}/${p.nombre}:`, e)
+  );
+}
+
 /** Reconstruye el envío desde el log y lo pushea (tras SI/NO/ERROR). */
 export async function pushEnvioForBmLead(
   bmId: string,

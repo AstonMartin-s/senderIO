@@ -10,6 +10,10 @@ import {
   chequearEstado,
   importarDesdeKommo,
 } from "../../services/plantillas.js";
+import {
+  pushPlantillaAsync,
+  syncPlantillasCatalogo,
+} from "../../services/trazabilidad-push.js";
 
 const botonSchema = z.object({
   text: z.string(),
@@ -44,7 +48,22 @@ export async function plantillaRoutes(app: FastifyInstance) {
   // Precarga: importa de Kommo las plantillas existentes, alineadas por WABA id.
   app.post("/api/plantillas/importar", async (_req, reply) => {
     try {
-      return await importarDesdeKommo();
+      const res = await importarDesdeKommo();
+      // Tras importar, sincronizamos el catálogo con trazabilidad (no bloqueante).
+      syncPlantillasCatalogo().catch((e) =>
+        console.error("[plantillas] sync catálogo tras importar:", e)
+      );
+      return res;
+    } catch (e) {
+      return reply.code(400).send({ error: (e as Error).message });
+    }
+  });
+
+  // Sincroniza TODO el catálogo de plantillas con el programa de trazabilidad.
+  app.post("/api/plantillas/sync-trazabilidad", async (_req, reply) => {
+    try {
+      const enviadas = await syncPlantillasCatalogo();
+      return { ok: true, enviadas };
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });
     }
@@ -63,6 +82,7 @@ export async function plantillaRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
     const p = await createPlantilla(parsed.data);
+    pushPlantillaAsync({ bmId: p.bmId, nombre: p.nombre, contenido: p.contenido });
     return reply.code(201).send(p);
   });
 
@@ -74,6 +94,8 @@ export async function plantillaRoutes(app: FastifyInstance) {
     }
     const p = await patchPlantilla(Number(id), parsed.data);
     if (!p) return reply.code(404).send({ error: "no existe" });
+    // El nombre o el contenido pueden haber cambiado: refrescamos el catálogo.
+    pushPlantillaAsync({ bmId: p.bmId, nombre: p.nombre, contenido: p.contenido });
     return p;
   });
 
@@ -99,6 +121,10 @@ export async function plantillaRoutes(app: FastifyInstance) {
     const { id } = req.params as { id: string };
     try {
       const p = await chequearEstado(Number(id));
+      // Si quedó aprobada, aseguramos que el catálogo tenga su texto.
+      if (p.estado === "approved") {
+        pushPlantillaAsync({ bmId: p.bmId, nombre: p.nombre, contenido: p.contenido });
+      }
       return p;
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });

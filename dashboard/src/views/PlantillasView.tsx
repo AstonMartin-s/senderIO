@@ -37,6 +37,7 @@ export default function PlantillasView() {
   const [editing, setEditing] = useState<Plantilla | "new" | null>(null);
   const [busy, setBusy] = useState<Record<number, boolean>>({});
   const [importando, setImportando] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
   const [filtroBm, setFiltroBm] = useState<string>("");
   const [filtroEstado, setFiltroEstado] = useState<string>("");
 
@@ -98,6 +99,18 @@ export default function PlantillasView() {
     plP.refresh();
   }
 
+  async function syncTrazabilidad() {
+    setSincronizando(true);
+    try {
+      const r = await api.syncPlantillasTrazabilidad();
+      alert(`Catálogo sincronizado con trazabilidad.\nEnviadas: ${r.enviadas}`);
+    } catch (e) {
+      alert(`No se pudo sincronizar: ${(e as Error).message}`);
+    } finally {
+      setSincronizando(false);
+    }
+  }
+
   async function importar() {
     setImportando(true);
     try {
@@ -141,6 +154,15 @@ export default function PlantillasView() {
           <Button variant="primary" onClick={importar} disabled={importando}>
             <IconRefresh className="h-4 w-4" />
             {importando ? "Importando…" : "Importar de Kommo"}
+          </Button>
+          <Button
+            variant="default"
+            onClick={syncTrazabilidad}
+            disabled={sincronizando}
+            title="Manda el catálogo de plantillas (nombre + texto) al programa de trazabilidad"
+          >
+            <IconRefresh className="h-4 w-4" />
+            {sincronizando ? "Sincronizando…" : "Sync trazabilidad"}
           </Button>
           <Button variant="default" onClick={() => setEditing("new")}>
             <IconPlus className="h-4 w-4" /> Registrar manual

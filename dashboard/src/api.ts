@@ -187,6 +187,11 @@ export const api = {
       "/api/plantillas/importar",
       { method: "POST" }
     ),
+  syncPlantillasTrazabilidad: () =>
+    req<{ ok: boolean; enviadas: number }>(
+      "/api/plantillas/sync-trazabilidad",
+      { method: "POST" }
+    ),
 };
 
 export interface LogFiltro {
