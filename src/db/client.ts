@@ -5,17 +5,14 @@ import * as schema from "./schema.js";
 
 const { Pool } = pg;
 
-// Pool afinado para Railway: keepAlive evita re-handshakes caros contra el proxy,
-// y los timeouts hacen que una consulta lenta falle rápido en vez de colgar el
-// panel 30s. statement_timeout corta queries que se pasen de la raya.
+// Pool simple y robusto. keepAlive evita re-handshakes caros contra el proxy de
+// Railway. NO seteamos statement_timeout/query_timeout ni connectionTimeout
+// agresivos: en un cold start la base puede tardar en aceptar conexiones y esos
+// cortes tumbaban el arranque (db:migrate) provocando crash loop.
 export const pool = new Pool({
   connectionString: config.databaseUrl,
-  max: 8,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 10_000,
+  max: 10,
   keepAlive: true,
-  statement_timeout: 15_000,
-  query_timeout: 15_000,
 });
 
 export const db = drizzle(pool, { schema });
