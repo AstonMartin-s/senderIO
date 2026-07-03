@@ -18,7 +18,9 @@ async function postEnvios(envios: EnvioTrazabilidad[]): Promise<void> {
   const base = config.trazabilidad.apiUrl;
   if (!base || !config.trazabilidad.pushEnabled) return;
 
-  const validos = envios.filter((e) => e.telefono && e.message_id);
+  const validos = envios.filter(
+    (e) => e.message_id && e.telefono && e.telefono.startsWith("+")
+  );
   if (validos.length === 0) return;
 
   // No mandamos el cuerpo del mensaje: viaja solo `template_nombre` y el receptor
@@ -88,6 +90,7 @@ export async function pushEnvio(envio: EnvioTrazabilidad): Promise<void> {
 export type PlantillaCatalogo = {
   template_nombre: string;
   plataforma: string;
+  campaign_id_externo: string;
   contenido: string;
 };
 
@@ -95,7 +98,9 @@ async function postPlantillas(items: PlantillaCatalogo[]): Promise<void> {
   const base = config.trazabilidad.apiUrl;
   if (!base || !config.trazabilidad.pushEnabled) return;
 
-  const validos = items.filter((p) => p.template_nombre && p.contenido);
+  const validos = items.filter(
+    (p) => p.template_nombre && p.contenido && p.campaign_id_externo
+  );
   if (validos.length === 0) return;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -107,7 +112,7 @@ async function postPlantillas(items: PlantillaCatalogo[]): Promise<void> {
   const res = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ plantillas: validos }),
+    body: JSON.stringify({ origen: "senderio", plantillas: validos }),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -117,12 +122,13 @@ async function postPlantillas(items: PlantillaCatalogo[]): Promise<void> {
 }
 
 function buildPlantillaCatalogo(
-  p: { nombre: string; contenido: string | null },
+  p: { bmId?: string; nombre: string; contenido: string | null },
   bm: BmConfig | undefined
 ): PlantillaCatalogo {
   return {
     template_nombre: p.nombre,
     plataforma: bm?.plataforma ?? "mooney",
+    campaign_id_externo: bm?.campaignId ?? bm?.id ?? p.bmId ?? "",
     contenido: p.contenido ?? "",
   };
 }

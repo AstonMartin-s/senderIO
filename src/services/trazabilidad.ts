@@ -1,4 +1,5 @@
 import type { BmConfig, LogMovimiento, Plantilla } from "../db/schema.js";
+import { normalizePhoneE164 } from "../lib/phone.js";
 
 /** Timestamp en ISO 8601 con huso fijo de Argentina (-03:00). */
 export function toIsoAr(d: Date | string | null | undefined): string {
@@ -135,6 +136,7 @@ export function buildEnvioFromGrupo(
   const fuente = bm.fuenteEnvio ?? "crm";
   const fallo = g.resultado === "error";
   const interactuo = g.resultado === "si" || g.resultado === "no";
+  const telefono = normalizePhoneE164(g.telefono) ?? "";
 
   return {
     fuente_envio: fuente,
@@ -143,7 +145,7 @@ export function buildEnvioFromGrupo(
     campaign_nombre: bm.campaignNombre ?? bm.nombre ?? g.bmId,
     template_nombre: g.templateNombre ?? pl?.nombre ?? g.plantilla ?? "",
     mensaje_enviado: g.mensajeEnviado ?? pl?.contenido ?? "",
-    telefono: g.telefono ?? "",
+    telefono,
     es_interno: fuente === "crm",
     segmento: g.segmento ?? "",
     message_id: buildMessageId(g.bmId, g.leadId),

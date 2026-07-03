@@ -7,6 +7,7 @@ import type {
   NewStageInput,
   WabaTemplateInput,
 } from "./types.js";
+import { normalizePhoneE164 } from "../lib/phone.js";
 
 /** Forma cruda de una plantilla de chat tal como la devuelve la API v4. */
 interface RawTemplate {
@@ -57,15 +58,11 @@ function mapPipeline(p: RawPipeline): KommoPipeline {
 }
 
 /**
- * Normaliza un teléfono a E.164 (`+` + dígitos, sin espacios ni guiones).
- * Si no hay un `+` explícito y parece un número argentino, antepone `+`.
- * Devuelve null si no queda nada utilizable.
+ * Normaliza un teléfono a E.164 (`+` + dígitos). Delega en el helper compartido
+ * usado también antes del push a Trazabilidad.
  */
 function normalizarE164(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const digits = String(raw).replace(/\D/g, "");
-  if (digits.length < 8) return null;
-  return `+${digits}`;
+  return normalizePhoneE164(raw);
 }
 
 export class RealKommoClient implements KommoClient {

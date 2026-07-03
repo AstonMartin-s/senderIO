@@ -5,6 +5,7 @@ import {
   pushEnvioAsync,
   pushEnvioFromTick,
 } from "../services/trazabilidad-push.js";
+import { normalizePhoneE164 } from "../lib/phone.js";
 import { config } from "../config.js";
 import { getKommoClient } from "../kommo/index.js";
 import {
@@ -166,6 +167,7 @@ async function tickInner(bmId: string) {
     const meta = await kommo
       .getLeadMeta(lead.id)
       .catch(() => ({ telefono: null, segmento: null }));
+    const telefono = normalizePhoneE164(meta.telefono);
 
     // Rotación de plantillas (round-robin): elegimos qué plantilla le toca a este
     // lead y la estampamos en PLANTILLA_ENVIADA ANTES de mover, así el bot la lee
@@ -201,20 +203,20 @@ async function tickInner(bmId: string) {
       accion: "movido_a_envio",
       resultado: "ok",
       etapaDestino: bm.stageDestinoId,
-      telefono: meta.telefono,
+      telefono,
       segmento: meta.segmento,
       plantilla: plantillaValor,
       templateNombre,
       mensajeEnviado,
     });
-    if (meta.telefono) {
+    if (telefono) {
       pushEnvioAsync(
         () =>
           pushEnvioFromTick(
             bm,
             lead.id,
             tsEnviado,
-            meta.telefono!,
+            telefono,
             meta.segmento,
             plantillaValor,
             templateNombre,
