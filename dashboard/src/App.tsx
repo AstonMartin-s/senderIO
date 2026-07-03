@@ -28,14 +28,6 @@ const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "log", label: "Log en vivo", icon: IconActivity },
 ];
 
-const TITLES: Record<View, { title: string; sub: string }> = {
-  overview: { title: "Overview", sub: "Estado global de la operación de goteo" },
-  bms: { title: "Por BM", sub: "Control de ritmo, límites y cortafuegos por número" },
-  plantillas: { title: "Plantillas", sub: "Plantillas WABA por BM · rotación con switch ON/OFF" },
-  funnel: { title: "Funnel & KPIs", sub: "Embudo de resultados y conversión" },
-  log: { title: "Log en vivo", sub: "Movimientos y resultados en tiempo real" },
-};
-
 export default function App() {
   const [view, setView] = useState<View>("overview");
   const { theme, toggle } = useTheme();
@@ -88,7 +80,24 @@ export default function App() {
           })}
         </nav>
 
-        <div className="m-3 rounded-xl bg-surface-2 p-4 ring-1 ring-line">
+        <div className="mx-3 mb-2 flex items-center gap-2">
+          <button
+            onClick={toggle}
+            title={theme === "dark" ? "Cambiar a claro" : "Cambiar a oscuro"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted ring-1 ring-line-strong transition-all hover:bg-surface-2 hover:text-fg active:scale-95"
+          >
+            {theme === "dark" ? (
+              <IconSun className="h-[18px] w-[18px]" />
+            ) : (
+              <IconMoon className="h-[18px] w-[18px]" />
+            )}
+          </button>
+          <Button onClick={resetDiario} className="flex-1 justify-center">
+            <IconRefresh className="h-4 w-4" /> Reset diario
+          </Button>
+        </div>
+
+        <div className="m-3 mt-0 rounded-xl bg-surface-2 p-4 ring-1 ring-line">
           <div className="flex items-center gap-2">
             <span
               className={`h-2 w-2 rounded-full ${
@@ -116,31 +125,6 @@ export default function App() {
 
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-line bg-surface/80 px-8 py-5 backdrop-blur">
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-fg">
-              {TITLES[view].title}
-            </h1>
-            <p className="text-sm text-muted">{TITLES[view].sub}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggle}
-              title={theme === "dark" ? "Cambiar a claro" : "Cambiar a oscuro"}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted ring-1 ring-line-strong transition-all hover:bg-surface-2 hover:text-fg active:scale-95"
-            >
-              {theme === "dark" ? (
-                <IconSun className="h-[18px] w-[18px]" />
-              ) : (
-                <IconMoon className="h-[18px] w-[18px]" />
-              )}
-            </button>
-            <Button onClick={resetDiario}>
-              <IconRefresh className="h-4 w-4" /> Reset diario
-            </Button>
-          </div>
-        </header>
-
         <main className="flex-1 overflow-y-auto px-8 py-6">
           <div key={view} className="animate-fade-in">
             {view === "overview" && <Overview />}

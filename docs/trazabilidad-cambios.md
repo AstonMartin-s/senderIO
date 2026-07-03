@@ -151,3 +151,50 @@ mejoran rendimiento y estabilidad; se listan para referencia:
   del dashboard.
 - Alerta de "sin leads" con anti-falsos-positivos (lock por BM, reintento y
   debounce) para no dispararse durante redeploys.
+
+---
+
+## 6. Backfill histórico (era n8n) — 2026-07-03
+
+Se cargó a Trazabilidad **prod** todo el histórico de envíos previo a SenderIO
+(operación con n8n), reconstruido **desde los eventos de Kommo** (fuente de
+verdad), independiente de los logs/planillas que podían estar incompletos.
+
+**Método:** barrido de eventos `lead_status_changed` de Kommo (rango
+2026-05-15 → 2026-06-27, ~42.7k eventos) detectando la entrada de cada lead a la
+etapa de ENVÍO de los embudos spam. Luego resolución de teléfono (E.164) y
+segmento (`ListaN`) por lead/contacto, y push idempotente por `message_id`.
+
+**Embudos → BM (era n8n):**
+
+| BM | Embudo Kommo | Pipeline ID | Etapa envío |
+|----|--------------|-------------|-------------|
+| BM1 | SPAM NUMERO #1 | 13334059 | Ejecucion PlanTilla 1/2 |
+| BM2 | SPAM NUMERO #2 | 13757935 | Ejecucion Plantilla 1 |
+| BM3 | Spam Numero 3 | 13790083 | Envio de plantilla SPnumero3 / Spnumero2 |
+| BM4 | Spam Numero 4 | 13837663 | Ejecucion Plantilla 1 |
+| BM5 | Fisioforma Bebedouro LTDA | 14024727 | ENVIO DE PLANTILLA (sin envíos en el rango n8n) |
+
+**Resultado del backfill:**
+
+- **5016 envíos** cargados (era n8n): BM1=2015, BM2=1074, BM3=1908, BM4=19.
+- **1185 envíos** ya sincronizados previamente desde `log_movimientos` (era SenderIO, 26-jun+).
+- Todo idempotente por `message_id = senderio:<BM>:<leadId>` (sin duplicados en el solape).
+- Segunda pasada: se agregó `ts_primera_respuesta` y `estado_final` (sent/failed)
+  reconstruyendo las entradas a las etapas Si / No / Error / Solicita BAJA por lead.
+
+**Scripts usados (temporales, `scripts/_*.ts`):**
+
+- `_recuperar_kommo.ts` — barrido de eventos + armado del CSV v2 (envíos + resultados).
+- `_push_csv.ts` — push idempotente de un CSV v2 a `/api/v1/spam/envios`.
+- `_backfill_historico.ts` — variante inicial que resolvía desde el export de Google Sheets.
+
+**Cierre (confirmado por Trazabilidad, 2026-07-03):**
+
+- Dedup OK: 5982 `message_id` únicos, 0 duplicados pese a los reenvíos (envíos + resultados).
+- Rango `ts_enviado` en prod: 16/05 → 02/07. Por campaña: BM1=2371, BM2=1074, BM3=2419, BM4=19, BM5=99.
+- `estado_final`: sent=4671, failed=1311.
+- Total 5982 (no 6201 = 5016 n8n + 1185 sender): ~219 leads pasaron por el MISMO BM en
+  ambas eras y comparten `message_id`, colapsando a 1 fila. Comportamiento correcto.
+- `template_nombre` vacío aceptado para el tramo histórico (5018 filas).
+- **Backfill cerrado de ambos lados. Sin acciones pendientes.**
