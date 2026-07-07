@@ -14,7 +14,7 @@ import {
   IconTrash,
   IconAlert,
 } from "../components/icons";
-import { estadoBm, estadoMeta, timeAgo, timeUntil } from "../lib/format";
+import { estadoBm, estadoMeta, pctErrorTone, timeAgo, timeUntil } from "../lib/format";
 
 export default function BmsView() {
   const { data, refresh, mutate } = usePolling<Bm[]>(api.bms, 8000);
@@ -162,7 +162,7 @@ export default function BmsView() {
                 <Metric
                   label="% error móvil"
                   value={`${pct}%`}
-                  tone={pct > 15 ? "bad" : pct > 10 ? "warn" : "ok"}
+                  tone={pctErrorTone(pct)}
                 />
                 <Metric
                   label="Racha err."

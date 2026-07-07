@@ -1,7 +1,13 @@
 import { api, usePolling, type Bm, type KpiFila } from "../api";
 import { Card, StatCard, ProgressBar, Dot } from "../components/ui";
 import { IconSend, IconCheck, IconAlert, IconLayers } from "../components/icons";
-import { estadoBm, estadoMeta, timeAgo } from "../lib/format";
+import {
+  estadoBm,
+  estadoMeta,
+  timeAgo,
+  PCT_ERROR_WARN,
+  PCT_ERROR_ALERT,
+} from "../lib/format";
 
 export default function Overview() {
   const bmsQ = usePolling<Bm[]>(api.bms, 8000);
@@ -34,9 +40,9 @@ export default function Overview() {
     );
 
   const errColor =
-    pctError > 15
+    pctError >= PCT_ERROR_ALERT
       ? "text-rose-600 dark:text-rose-300"
-      : pctError > 10
+      : pctError >= PCT_ERROR_WARN
         ? "text-amber-600 dark:text-amber-300"
         : "text-emerald-600 dark:text-emerald-300";
 
@@ -73,7 +79,7 @@ export default function Overview() {
         <StatCard
           label="% Error 3132 (global)"
           value={<span className={errColor}>{pctError}%</span>}
-          sub="Banda sana 5–10% · alerta >15%"
+          sub={`Normal <${PCT_ERROR_WARN}% · alerta ≥${PCT_ERROR_ALERT}%`}
           accent="bg-amber-500/12 text-amber-600 dark:text-amber-300"
           icon={<IconAlert className="h-5 w-5" />}
         />
@@ -155,9 +161,9 @@ export default function Overview() {
                   </span>
                   <span
                     className={`w-16 text-right tabular-nums ${
-                      Number(bm.pctErrorMovil) > 15
+                      Number(bm.pctErrorMovil) >= PCT_ERROR_ALERT
                         ? "text-rose-600 dark:text-rose-300"
-                        : Number(bm.pctErrorMovil) > 10
+                        : Number(bm.pctErrorMovil) >= PCT_ERROR_WARN
                           ? "text-amber-600 dark:text-amber-300"
                           : "text-muted"
                     }`}

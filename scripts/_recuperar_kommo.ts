@@ -252,7 +252,8 @@ async function main() {
       message_id: buildMessageId(bm, leadId),
       ts_enviado: tsArIso(ts),
       ts_entregado: null,
-      ts_leido: interactuo && r ? tsArIso(r.ts) : null,
+      // Sin read-receipt real (envío por Salesbot de Kommo): siempre null.
+      ts_leido: null,
       ts_primera_respuesta: interactuo && r ? tsArIso(r.ts) : null,
       estado_final: fallo ? "failed" : "sent",
       error_codigo: fallo ? "3132" : null,

@@ -55,14 +55,34 @@ export function dayDM(iso: string | null): string {
 
 export type Estado = "activo" | "alerta" | "pausado" | "inactivo";
 
+/**
+ * Umbrales del % de error móvil (errores 3132 sobre los últimos N resultados).
+ * En envíos masivos un baseline alto de errores (números inválidos) es normal:
+ * la operación histórica ronda ~45%. Por eso solo se considera "alerta" cuando
+ * el error es claramente superior a ese piso esperado.
+ */
+export const PCT_ERROR_WARN = 50; // elevado: empezar a mirar
+export const PCT_ERROR_ALERT = 70; // considerable: alerta real
+
+export type Tone = "ok" | "warn" | "bad";
+
+export function pctErrorTone(pct: number): Tone {
+  if (pct >= PCT_ERROR_ALERT) return "bad";
+  if (pct >= PCT_ERROR_WARN) return "warn";
+  return "ok";
+}
+
 export function estadoBm(bm: Bm): Estado {
   if (!bm.activo) return "inactivo";
   const pct = Number(bm.pctErrorMovil);
   if (bm.pausado || bm.erroresConsecutivos >= bm.umbralErroresConsecutivos)
     return "pausado";
-  if (pct > 15 || (bm.pausadoHasta && new Date(bm.pausadoHasta) > new Date()))
+  // Cortafuegos activo (pausa corta vigente) o error móvil considerable.
+  if (
+    pct >= PCT_ERROR_ALERT ||
+    (bm.pausadoHasta && new Date(bm.pausadoHasta) > new Date())
+  )
     return "alerta";
-  if (pct > 10) return "alerta";
   return "activo";
 }
 

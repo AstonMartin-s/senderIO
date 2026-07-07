@@ -198,3 +198,14 @@ segmento (`ListaN`) por lead/contacto, y push idempotente por `message_id`.
   ambas eras y comparten `message_id`, colapsando a 1 fila. Comportamiento correcto.
 - `template_nombre` vacío aceptado para el tramo histórico (5018 filas).
 - **Backfill cerrado de ambos lados. Sin acciones pendientes.**
+
+**Corrección `ts_leido` (2026-07-07):**
+
+- SenderIO envía por Salesbot de Kommo (WABA nativo), sin Meta Cloud API ni Baileys,
+  así que **no hay delivery/read receipts reales**: `ts_entregado` y `ts_leido` van
+  siempre `null`.
+- El backfill inicial había seteado `ts_leido = 1a respuesta` (proxy), lo que hacía
+  ver "leídos" estáticos e inconsistentes (`leído < respondió`) contra los envíos en
+  vivo (que ya mandaban `null`). Se re-empujó el histórico (5016) con `ts_leido=null`
+  (idempotente) y se corrigió `scripts/_recuperar_kommo.ts` para no reintroducir el proxy.
+- Trazabilidad saca entregado/leído del embudo (los marca "sin dato").
