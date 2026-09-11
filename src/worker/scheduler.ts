@@ -54,7 +54,9 @@ function programar(bmId: string, enSegundos: number) {
   const prev = timers.get(bmId);
   if (prev) clearTimeout(prev);
   const t = setTimeout(() => {
-    tick(bmId).catch((err) => console.error(`[worker:${bmId}] error:`, err));
+    tick(bmId, "goteo").catch((err) =>
+      console.error(`[worker:${bmId}] error:`, err)
+    );
   }, Math.max(1, enSegundos) * 1000);
   timers.set(bmId, t);
 }
@@ -65,20 +67,20 @@ async function programarProximoNormal(bm: BmConfig) {
   programar(bm.id, seg);
 }
 
-async function tick(bmId: string) {
+async function tick(bmId: string, modo: "goteo" | "panel" = "goteo") {
   if (enProceso.has(bmId)) {
     console.log(`[worker:${bmId}] tick solapado, omitiendo`);
     return;
   }
   enProceso.add(bmId);
   try {
-    await tickInner(bmId);
+    await tickInner(bmId, modo);
   } finally {
     enProceso.delete(bmId);
   }
 }
 
-async function tickInner(bmId: string) {
+async function tickInner(bmId: string, modo: "goteo" | "panel" = "goteo") {
   const bm = await getBm(bmId);
   if (!bm || !bm.activo) {
     timers.delete(bmId);
@@ -109,6 +111,14 @@ async function tickInner(bmId: string) {
   // Límite diario alcanzado: re-chequear en 5 min.
   if (bm.enviadosHoy >= bm.limiteDiario) {
     programar(bmId, 300);
+    return;
+  }
+
+  // Cambio del panel: aplicar pausa/ventana/límite y reprogramar el ritmo.
+  // Nunca mover un lead acá — un PATCH no es un disparo.
+  if (modo === "panel") {
+    await programarProximoNormal(bm);
+    console.log(`[worker:${bm.id}] panel: config aplicada, próximo tick en ritmo (sin envío)`);
     return;
   }
 
@@ -260,21 +270,26 @@ export async function startScheduler() {
 }
 
 /**
- * Reacción inmediata a un cambio hecho en el panel (vía LISTEN/NOTIFY).
- * Reprograma un tick casi instantáneo: tick() re-lee la config y decide
- * (enviar, pausar, detener si quedó inactivo, etc.).
+ * Reacción a un cambio del panel (LISTEN/NOTIFY): re-lee la config y
+ * reaplica el reloj (pausa, ventana, tope, ritmo). No dispara envío.
  */
 export function reevaluar(bmId: string) {
-  console.log(`[worker:${bmId}] reevaluación inmediata (panel)`);
-  programar(bmId, 1);
+  console.log(`[worker:${bmId}] reevaluación (panel, sin envío)`);
+  tick(bmId, "panel").catch((err) =>
+    console.error(`[worker:${bmId}] error:`, err)
+  );
 }
 
 /** Reevalúa todos los BMs (activos + los que tengan reloj). Para reset diario. */
 export async function reevaluarTodos() {
   const activos = await getActiveBms();
   const ids = new Set<string>([...timers.keys(), ...activos.map((b) => b.id)]);
-  console.log(`[worker] reevaluación global de ${ids.size} BMs (panel)`);
-  for (const id of ids) programar(id, 1);
+  console.log(`[worker] reevaluación global de ${ids.size} BMs (panel, sin envío)`);
+  for (const id of ids) {
+    tick(id, "panel").catch((err) =>
+      console.error(`[worker:${id}] error:`, err)
+    );
+  }
 }
 
 /** Detiene todos los relojes (apagado limpio). */

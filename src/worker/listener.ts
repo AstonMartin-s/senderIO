@@ -11,7 +11,7 @@ let reconnectTimer: NodeJS.Timeout | null = null;
 /**
  * Mantiene una conexión dedicada con LISTEN al canal de control.
  * Cuando la API emite un NOTIFY (pausar/reanudar/editar/alta/baja), el worker
- * reacciona al instante en vez de esperar al próximo tick.
+ * reaplica el reloj al instante. No dispara un envío.
  */
 export async function startControlListener() {
   await connect();
