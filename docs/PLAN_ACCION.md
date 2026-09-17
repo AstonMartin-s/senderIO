@@ -2,6 +2,15 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-17 — Merge dump n8n al feed
+
+- REF: `MSG-TRZ-20260917-SND-DUMP-1` / `MSG-TRZ-20260917-DUMP-SND`.
+- JSON no commiteado. Merge idempotente a `log_movimientos` + LEFT JOIN en el feed
+  (BM2/BM4 ya no están en `bm_config`).
+- Únicos post-merge: **9558** envíos. Plantillas: 0 altas (13 nombres ya existían).
+- `resultado_respuesta` para 1ª respuesta n8n (sin inventar SI/NO).
+- Dual-run push viejo sigue ON.
+
 ## 2026-09-17 — R1 feed Traza v1 para Control
 
 - REF: `MSG-TRZ-20260917-SND-1`.

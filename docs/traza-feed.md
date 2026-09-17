@@ -35,6 +35,9 @@ Payload envío: claves camelCase siempre presentes (ausente → `null`).
 
 ## Cobertura local
 
-- Envíos en esta DB: desde **2026-06-26** (era SenderIO). Drenaje: cursor hasta `hasMore=false`.
-- **Falta tramo histórico n8n** (2026-05-16 → 2026-06-26): nunca se persistió acá;
-  se pusheó al Railway viejo. Pedir dump one-shot a TRZ si Control no lo tiene.
+- Envíos en esta DB: **2026-05-16 → hoy**.
+  Merge n8n (MSG-TRZ-20260917-DUMP-SND) + era SenderIO. Idempotente por `message_id`.
+  Drenaje local: **9558** `senderio.envio` únicos (4757 dump + 4895 locales − 94 solape).
+- Plantillas: 13 nombres únicos (el dump traía 32 items / 13 nombres; ya estaban).
+- `template_nombre` vacío en el tramo n8n: aceptado (n8n no lo registró).
+- Dual-run: push al Railway viejo sigue ON.

@@ -178,7 +178,7 @@ async function fetchEnvios(
         b.campaign_nombre,
         b.nombre AS bm_nombre
       FROM log_movimientos m
-      JOIN bm_config b ON b.id = m.bm_id
+      LEFT JOIN bm_config b ON b.id = m.bm_id
       WHERE m.accion = 'movido_a_envio'
         AND m.lead_id IS NOT NULL
       ORDER BY m.bm_id, m.lead_id, m.ts ASC
@@ -187,7 +187,12 @@ async function fetchEnvios(
       SELECT DISTINCT ON (bm_id, lead_id)
         bm_id, lead_id, accion, ts
       FROM log_movimientos
-      WHERE accion IN ('resultado_si', 'resultado_no', 'resultado_error')
+      WHERE accion IN (
+          'resultado_si',
+          'resultado_no',
+          'resultado_error',
+          'resultado_respuesta'
+        )
         AND lead_id IS NOT NULL
       ORDER BY bm_id, lead_id, ts DESC
     )
@@ -223,7 +228,8 @@ async function fetchEnvios(
     const fallo = r.resultado_accion === "resultado_error";
     const interactuo =
       r.resultado_accion === "resultado_si" ||
-      r.resultado_accion === "resultado_no";
+      r.resultado_accion === "resultado_no" ||
+      r.resultado_accion === "resultado_respuesta";
     const telefono = normalizePhoneE164(r.telefono);
     return {
       type: "senderio.envio" as const,
