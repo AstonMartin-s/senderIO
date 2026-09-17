@@ -2,6 +2,12 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-17 — ACK cierre dump n8n (TRZ)
+
+- REF: `MSG-TRZ-20260917-SND-ACK-1`. Dump cerrado. 9558 = 4757+4895−94.
+- Cruce vs Railway viejo: 9556 crm (+2 live post-dump). Plantillas OK.
+- Dual-run ON. No apagar push. Siguiente: CRED `TRAZA_FEED_TOKEN` → Control drena.
+
 ## 2026-09-17 — Merge dump n8n al feed
 
 - REF: `MSG-TRZ-20260917-SND-DUMP-1` / `MSG-TRZ-20260917-DUMP-SND`.
