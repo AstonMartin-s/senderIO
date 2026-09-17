@@ -11,6 +11,7 @@ import { bmRoutes } from "./routes/bms.js";
 import { controlRoutes } from "./routes/control.js";
 import { kpiRoutes } from "./routes/kpis.js";
 import { plantillaRoutes } from "./routes/plantillas.js";
+import { trazaRoutes } from "./routes/traza.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dashboardDist = join(__dirname, "../../dashboard/dist");
@@ -25,6 +26,7 @@ async function build() {
     kommo: config.kommo.mode,
   }));
 
+  await app.register(trazaRoutes);
   await app.register(webhookRoutes);
   await app.register(bmRoutes);
   await app.register(controlRoutes);
@@ -35,7 +37,11 @@ async function build() {
   if (existsSync(dashboardDist)) {
     await app.register(fastifyStatic, { root: dashboardDist });
     app.setNotFoundHandler((req, reply) => {
-      if (req.url.startsWith("/api") || req.url.startsWith("/webhook")) {
+      if (
+        req.url.startsWith("/api") ||
+        req.url.startsWith("/webhook") ||
+        req.url.startsWith("/traza")
+      ) {
         return reply.code(404).send({ error: "not found" });
       }
       return reply.sendFile("index.html"); // SPA fallback
