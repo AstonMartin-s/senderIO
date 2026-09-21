@@ -2,6 +2,27 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-21 — Panel-cliente: cupo del paquete (500)
+
+- Campo `paquete_total` en `cliente_panel` (default 500, editable). Migración
+  `0016_paquete_total.sql`.
+- `consumoPaquete`: consumidos = enviado + respondió SÍ + respondió NO sobre la
+  lista filtrada del cliente (cruce por teléfono). Los ERROR **no descuentan**.
+  Informativo: NO frena el goteo (envío lo maneja el worker por BM).
+- `/api/cliente/panel` devuelve `paquete { total, consumidos, restantes,
+  errores, pct, activado }`. PATCH acepta `paqueteTotal`.
+- Front: banner "Paquete activado · N mensajes" + barra de consumo en Resumen;
+  campo editable en Oferta. typecheck + build OK.
+
+## 2026-09-21 — ACK CRED: admin panel cargado + rotado
+
+- REF: `MSG-CRED-20260921-SND-ADMIN-1` / `MSG-SND-20260921-CRED-ADMIN-ACK-1`.
+- `ADMIN_USER`/`ADMIN_PASSWORD` en senderIO (production). Redeploy `175debdb` SUCCESS.
+- Verificado SND (sin leer valor): pass viejo `changeme` → 401; sin auth → 401;
+  `/health` → 200. Credencial válida solo desde bóveda CRED
+  (`boveda/senderio/real/admin-panel.env`).
+- Worker no tocado. `CLIENTE_PANEL_TOKEN`/`TRAZA_FEED_TOKEN` intactos.
+
 ## 2026-09-21 — Admin login panel principal (HTTP Basic)
 
 - Panel de operación ya no se sirve sin auth: hook `onRequest` global con

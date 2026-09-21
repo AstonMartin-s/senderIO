@@ -255,6 +255,7 @@ export interface ClientePanelConfig {
   ofertaTitulo: string;
   ofertaDetalle: string;
   ofertaMontoUsd: string | null;
+  paqueteTotal: number;
   mensajeTexto: string;
   plantillaNombre: string;
   redirecciones: string[];
@@ -281,6 +282,14 @@ export interface ClientePanelResp {
     respondio_no: number;
     error: number;
     pendiente: number;
+  };
+  paquete: {
+    total: number;
+    consumidos: number;
+    restantes: number;
+    errores: number;
+    pct: number;
+    activado: boolean;
   };
 }
 

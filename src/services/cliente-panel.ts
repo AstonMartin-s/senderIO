@@ -21,6 +21,7 @@ const DEFAULT_PANEL = (clientId: string): ClientePanel => ({
   ofertaTitulo: "",
   ofertaDetalle: "",
   ofertaMontoUsd: null,
+  paqueteTotal: 500,
   mensajeTexto: "",
   plantillaNombre: "",
   redirecciones: [],
@@ -43,6 +44,7 @@ export type PanelPatch = Partial<
     | "ofertaTitulo"
     | "ofertaDetalle"
     | "ofertaMontoUsd"
+    | "paqueteTotal"
     | "mensajeTexto"
     | "plantillaNombre"
     | "redirecciones"
@@ -61,6 +63,8 @@ export async function savePanel(
     clean.ofertaDetalle = patch.ofertaDetalle;
   if (patch.ofertaMontoUsd !== undefined)
     clean.ofertaMontoUsd = patch.ofertaMontoUsd;
+  if (patch.paqueteTotal !== undefined)
+    clean.paqueteTotal = Math.max(0, Math.floor(patch.paqueteTotal));
   if (patch.mensajeTexto !== undefined) clean.mensajeTexto = patch.mensajeTexto;
   if (patch.plantillaNombre !== undefined)
     clean.plantillaNombre = patch.plantillaNombre;
@@ -290,4 +294,30 @@ export async function resumenTraza(clientId: string) {
   };
   for (const f of filas) acc[f.estado] += 1;
   return acc;
+}
+
+/**
+ * Consumo del paquete. Regla (definida con Aston, 2026-09-21):
+ *  - Universo: solo la lista filtrada del cliente (cruce por teléfono E.164).
+ *  - Consumido = mensajes que se enviaron y NO terminaron en error
+ *    (enviado + respondió SÍ + respondió NO). Los ERROR no descuentan.
+ *  - Informativo: NO frena el goteo (el envío lo maneja el worker por BM).
+ */
+export async function consumoPaquete(clientId: string) {
+  const [panel, r] = await Promise.all([
+    getPanel(clientId),
+    resumenTraza(clientId),
+  ]);
+  const total = panel.paqueteTotal;
+  const consumidos = r.enviado + r.respondio_si + r.respondio_no;
+  const restantes = Math.max(0, total - consumidos);
+  const pct = total > 0 ? Math.min(100, Math.round((consumidos / total) * 100)) : 0;
+  return {
+    total,
+    consumidos,
+    restantes,
+    errores: r.error, // no descuentan, se muestran aparte
+    pct,
+    activado: total > 0,
+  };
 }

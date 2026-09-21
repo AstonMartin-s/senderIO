@@ -9,6 +9,7 @@ import {
   contarBases,
   trazaPorNumero,
   resumenTraza,
+  consumoPaquete,
   type FilaBase,
   type PanelPatch,
 } from "../../services/cliente-panel.js";
@@ -53,12 +54,13 @@ export async function clientePanelRoutes(app: FastifyInstance) {
   // Config + oferta + mensaje/plantilla + redirecciones + conteos de bases.
   app.get("/api/cliente/panel", async (req, reply) => {
     if (!guard(req, reply)) return;
-    const [panel, bases, resumen] = await Promise.all([
+    const [panel, bases, resumen, paquete] = await Promise.all([
       getPanel(PANEL_ID),
       contarBases(PANEL_ID),
       resumenTraza(PANEL_ID),
+      consumoPaquete(PANEL_ID),
     ]);
-    return { panel, bases, resumen };
+    return { panel, bases, resumen, paquete };
   });
 
   app.patch("/api/cliente/panel", async (req, reply) => {
@@ -72,6 +74,10 @@ export async function clientePanelRoutes(app: FastifyInstance) {
       patch.ofertaMontoUsd = (b.ofertaMontoUsd as string | null) ?? null;
     else if (typeof b.ofertaMontoUsd === "number")
       patch.ofertaMontoUsd = String(b.ofertaMontoUsd);
+    if (typeof b.paqueteTotal === "number")
+      patch.paqueteTotal = b.paqueteTotal;
+    else if (typeof b.paqueteTotal === "string" && b.paqueteTotal.trim())
+      patch.paqueteTotal = Number(b.paqueteTotal);
     if (typeof b.mensajeTexto === "string") patch.mensajeTexto = b.mensajeTexto;
     if (typeof b.plantillaNombre === "string")
       patch.plantillaNombre = b.plantillaNombre;

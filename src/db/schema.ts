@@ -220,6 +220,10 @@ export const clientePanel = pgTable("cliente_panel", {
   ofertaTitulo: text("oferta_titulo").notNull().default(""),
   ofertaDetalle: text("oferta_detalle").notNull().default(""),
   ofertaMontoUsd: numeric("oferta_monto_usd"),
+  // Cupo del paquete: total de mensajes contratados (default 500). Editable.
+  // El consumo se calcula en vivo (enviados − errores sobre la lista filtrada);
+  // es informativo y NO frena el goteo (el envío lo maneja el worker por BM).
+  paqueteTotal: integer("paquete_total").notNull().default(500),
   // Recipiente "Mensaje/Plantilla": texto que se envía + nombre de plantilla.
   // Informativo/compartido; no toca la rotación real de plantillas.
   mensajeTexto: text("mensaje_texto").notNull().default(""),

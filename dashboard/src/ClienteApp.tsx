@@ -8,7 +8,7 @@ import {
   type TrazaNumero,
 } from "./api";
 import { parseCsv } from "./lib/csv";
-import { Button, Card, StatCard } from "./components/ui";
+import { Button, Card, StatCard, ProgressBar } from "./components/ui";
 import {
   IconSend,
   IconCheck,
@@ -136,6 +136,7 @@ function ConfigCard({
         ofertaTitulo: form.ofertaTitulo,
         ofertaDetalle: form.ofertaDetalle,
         ofertaMontoUsd: form.ofertaMontoUsd,
+        paqueteTotal: form.paqueteTotal,
         mensajeTexto: form.mensajeTexto,
         plantillaNombre: form.plantillaNombre,
         redirecciones: form.redirecciones,
@@ -162,14 +163,32 @@ function ConfigCard({
           onChange={(e) => set("ofertaTitulo", e.target.value)}
           placeholder="Paquete 250 USD"
         />
-        <label className="mb-1 mt-3 block text-xs text-muted">Monto (USD)</label>
-        <input
-          className={inputCls}
-          value={form.ofertaMontoUsd ?? ""}
-          onChange={(e) => set("ofertaMontoUsd", e.target.value || null)}
-          placeholder="250"
-          inputMode="decimal"
-        />
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs text-muted">Monto (USD)</label>
+            <input
+              className={inputCls}
+              value={form.ofertaMontoUsd ?? ""}
+              onChange={(e) => set("ofertaMontoUsd", e.target.value || null)}
+              placeholder="250"
+              inputMode="decimal"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs text-muted">
+              Paquete (mensajes)
+            </label>
+            <input
+              className={inputCls}
+              value={form.paqueteTotal}
+              onChange={(e) =>
+                set("paqueteTotal", Number(e.target.value) || 0)
+              }
+              placeholder="500"
+              inputMode="numeric"
+            />
+          </div>
+        </div>
         <label className="mb-1 mt-3 block text-xs text-muted">Detalle</label>
         <textarea
           className={`${inputCls} min-h-[90px]`}
@@ -501,6 +520,36 @@ export default function ClienteApp() {
           </button>
         ))}
       </nav>
+
+      {tab === "resumen" && data?.paquete && (
+        <Card className="mb-4 p-5">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
+                <IconCheck className="h-3.5 w-3.5" /> Paquete activado
+              </span>
+              <span className="text-sm font-medium text-fg">
+                {data.paquete.total} mensajes
+              </span>
+            </div>
+            <span className="text-sm text-muted tabular-nums">
+              <span className="font-bold text-fg">{data.paquete.consumidos}</span>{" "}
+              enviados ·{" "}
+              <span className="font-bold text-fg">{data.paquete.restantes}</span>{" "}
+              restantes
+            </span>
+          </div>
+          <ProgressBar
+            value={data.paquete.consumidos}
+            max={data.paquete.total}
+            className="bg-emerald-500"
+          />
+          <p className="mt-2 text-[11px] text-faint">
+            Se descuenta a medida que se detecta el envío en trazabilidad. Los
+            errores no descuentan ({data.paquete.errores} con error).
+          </p>
+        </Card>
+      )}
 
       {tab === "resumen" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
