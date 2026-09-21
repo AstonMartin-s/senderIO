@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   plantillas,
@@ -8,12 +8,41 @@ import {
 } from "../db/schema.js";
 import { getKommoClient } from "../kommo/index.js";
 
-export async function getPlantillas(bmId?: string): Promise<Plantilla[]> {
-  const q = db.select().from(plantillas);
-  const rows = bmId
-    ? await q.where(eq(plantillas.bmId, bmId)).orderBy(asc(plantillas.id))
-    : await q.orderBy(asc(plantillas.id));
-  return rows;
+async function clientIdDeBm(bmId: string): Promise<string> {
+  const bm = (
+    await db
+      .select({ clientId: bmConfig.clientId })
+      .from(bmConfig)
+      .where(eq(bmConfig.id, bmId))
+  )[0];
+  return bm?.clientId ?? "mooney";
+}
+
+export async function getPlantillas(
+  bmId?: string,
+  clientId?: string
+): Promise<Plantilla[]> {
+  if (bmId) {
+    return db
+      .select()
+      .from(plantillas)
+      .where(eq(plantillas.bmId, bmId))
+      .orderBy(asc(plantillas.id));
+  }
+  if (clientId) {
+    const bms = await db
+      .select({ id: bmConfig.id })
+      .from(bmConfig)
+      .where(eq(bmConfig.clientId, clientId));
+    const ids = bms.map((b) => b.id);
+    if (ids.length === 0) return [];
+    return db
+      .select()
+      .from(plantillas)
+      .where(inArray(plantillas.bmId, ids))
+      .orderBy(asc(plantillas.id));
+  }
+  return db.select().from(plantillas).orderBy(asc(plantillas.id));
 }
 
 export async function getPlantilla(id: number): Promise<Plantilla | undefined> {
@@ -176,7 +205,7 @@ export async function crearEnKommo(id: number): Promise<Plantilla> {
     );
   }
 
-  const kommo = getKommoClient();
+  const kommo = getKommoClient(await clientIdDeBm(p.bmId));
   const creada = await kommo.createTemplate({
     name: p.nombre,
     content: p.contenido,
@@ -231,7 +260,7 @@ export async function chequearEstado(id: number): Promise<Plantilla> {
   if (!p.kommoTemplateId) {
     throw new Error("la plantilla todavía no fue creada en Kommo");
   }
-  const kommo = getKommoClient();
+  const kommo = getKommoClient(await clientIdDeBm(p.bmId));
   const review = await kommo.getTemplateReview(p.kommoTemplateId);
   let estado = normalizarEstado(review.status);
   // Kommo no siempre expone el estado de moderación por API (llega "unknown" →
@@ -259,11 +288,13 @@ export interface ImportResultado {
  * importadas (mismo kommoTemplateId). Las que no matchean ningún BM se cuentan
  * aparte (hay que cargar el WABA id en el BM primero).
  */
-export async function importarDesdeKommo(): Promise<ImportResultado> {
-  const kommo = getKommoClient();
+export async function importarDesdeKommo(
+  clientId = "mooney"
+): Promise<ImportResultado> {
+  const kommo = getKommoClient(clientId);
   const [tmpls, bms, existentes] = await Promise.all([
     kommo.listTemplates(true),
-    db.select().from(bmConfig),
+    db.select().from(bmConfig).where(eq(bmConfig.clientId, clientId)),
     db.select({ kommoTemplateId: plantillas.kommoTemplateId }).from(plantillas),
   ]);
 

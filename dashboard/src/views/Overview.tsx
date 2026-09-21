@@ -1,4 +1,5 @@
 import { api, usePolling, type Bm, type KpiFila } from "../api";
+import { useClient } from "../lib/client";
 import { Card, StatCard, ProgressBar, Dot } from "../components/ui";
 import { IconSend, IconCheck, IconAlert, IconLayers } from "../components/icons";
 import {
@@ -10,8 +11,9 @@ import {
 } from "../lib/format";
 
 export default function Overview() {
-  const bmsQ = usePolling<Bm[]>(api.bms, 8000);
-  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 10000);
+  const { clientId } = useClient();
+  const bmsQ = usePolling<Bm[]>(() => api.bms(clientId), 8000);
+  const kpiQ = usePolling<KpiFila[]>(() => api.kpisHoy(clientId), 10000);
 
   const bms = bmsQ.data ?? [];
   const kpis = kpiQ.data ?? [];

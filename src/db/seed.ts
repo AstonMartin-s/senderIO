@@ -1,5 +1,5 @@
 import { db, pool } from "./client.js";
-import { bmConfig, type NewBmConfig } from "./schema.js";
+import { bmConfig, clients, type NewBmConfig } from "./schema.js";
 
 /**
  * Seed con los BM reales de la planilla `estado_bm`.
@@ -75,6 +75,13 @@ const seeds: NewBmConfig[] = [
 ];
 
 async function main() {
+  console.log("[seed] asegurando clientes...");
+  for (const c of [
+    { id: "mooney", nombre: "Mooney" },
+    { id: "king", nombre: "King" },
+  ]) {
+    await db.insert(clients).values(c).onConflictDoNothing();
+  }
   console.log("[seed] insertando BMs...");
   for (const s of seeds) {
     await db

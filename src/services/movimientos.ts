@@ -1,3 +1,4 @@
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { logMovimientos } from "../db/schema.js";
 
@@ -38,4 +39,24 @@ export async function registrarMovimiento(params: {
     plantilla: params.plantilla ?? null,
     templateNombre: params.templateNombre ?? null,
   });
+}
+
+/** Etiqueta de Kommo guardada al enviar ese lead (para SI/NO/ERROR). */
+export async function segmentoDeLead(
+  bmId: string,
+  leadId: number
+): Promise<string | null> {
+  const rows = await db
+    .select({ segmento: logMovimientos.segmento })
+    .from(logMovimientos)
+    .where(
+      and(
+        eq(logMovimientos.bmId, bmId),
+        eq(logMovimientos.leadId, leadId),
+        eq(logMovimientos.accion, "movido_a_envio")
+      )
+    )
+    .orderBy(desc(logMovimientos.ts))
+    .limit(1);
+  return rows[0]?.segmento ?? null;
 }

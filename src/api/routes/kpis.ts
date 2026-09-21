@@ -1,9 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { bmConfig, logMovimientos, plantillas } from "../../db/schema.js";
-import { getKpis, computeSnapshot, computeRange } from "../../services/kpis.js";
+import {
+  getKpis,
+  computeSnapshot,
+  computeRange,
+  computeListas,
+} from "../../services/kpis.js";
 import { getKommoClient } from "../../kommo/index.js";
+import { resolveClientId } from "../../services/clients.js";
+import { getAllBms } from "../../services/bm.js";
 import { todayLocal } from "../../lib/time.js";
 import {
   aggregateGrupos,
@@ -22,20 +29,38 @@ const csvEsc = (v: unknown) => {
 export async function kpiRoutes(app: FastifyInstance) {
   // KPIs históricos archivados.
   app.get("/api/kpis", async (req) => {
-    const q = req.query as { bm?: string; desde?: string; hasta?: string };
-    return getKpis(q);
+    const q = req.query as {
+      bm?: string;
+      desde?: string;
+      hasta?: string;
+      client?: string;
+    };
+    return getKpis({ ...q, client: resolveClientId(q.client) });
   });
 
   // KPIs del día en curso (calculados en vivo desde el log).
-  app.get("/api/kpis/hoy", async () => {
-    return computeSnapshot(todayLocal());
+  app.get("/api/kpis/hoy", async (req) => {
+    const clientId = resolveClientId((req.query as { client?: string }).client);
+    return computeSnapshot(todayLocal(), clientId);
   });
 
   // KPIs en vivo para un rango de fechas (desde el log). Sin rango = hoy.
   app.get("/api/kpis/rango", async (req) => {
-    const q = req.query as { desde?: string; hasta?: string };
-    if (!q.desde && !q.hasta) return computeSnapshot(todayLocal());
-    return computeRange(q.desde, q.hasta);
+    const q = req.query as { desde?: string; hasta?: string; client?: string };
+    const clientId = resolveClientId(q.client);
+    if (!q.desde && !q.hasta) return computeSnapshot(todayLocal(), clientId);
+    return computeRange(q.desde, q.hasta, clientId);
+  });
+
+  // KPIs por etiqueta/lista de Kommo (mismo BM puede tener varias listas).
+  app.get("/api/kpis/listas", async (req) => {
+    const q = req.query as { desde?: string; hasta?: string; client?: string };
+    const clientId = resolveClientId(q.client);
+    if (!q.desde && !q.hasta) {
+      const hoy = todayLocal();
+      return computeListas(`${hoy}T00:00:00`, `${hoy}T23:59:59`, clientId);
+    }
+    return computeListas(q.desde, q.hasta, clientId);
   });
 
   // Log de movimientos en vivo (sin mensaje_enviado: textos largos que frenan el panel).
@@ -45,10 +70,16 @@ export async function kpiRoutes(app: FastifyInstance) {
       limit?: string;
       desde?: string;
       hasta?: string;
+      client?: string;
     };
     const limit = Math.min(Number(q.limit ?? 50), 1000);
     const conds = [];
     if (q.bm) conds.push(eq(logMovimientos.bmId, q.bm));
+    else {
+      const bms = await getAllBms(resolveClientId(q.client));
+      const ids = bms.map((b) => b.id);
+      conds.push(inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"]));
+    }
     if (q.desde) conds.push(gte(logMovimientos.ts, new Date(q.desde)));
     if (q.hasta) conds.push(lte(logMovimientos.ts, new Date(q.hasta)));
     return db
@@ -78,11 +109,17 @@ export async function kpiRoutes(app: FastifyInstance) {
       desde?: string;
       hasta?: string;
       limit?: string;
+      client?: string;
     };
     const limit = Math.min(Number(q.limit ?? 50000), 100000);
 
     const conds = [];
     if (q.bm) conds.push(eq(logMovimientos.bmId, q.bm));
+    else {
+      const bms = await getAllBms(resolveClientId(q.client));
+      const ids = bms.map((b) => b.id);
+      conds.push(inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"]));
+    }
     if (q.desde) conds.push(gte(logMovimientos.ts, new Date(q.desde)));
     if (q.hasta) conds.push(lte(logMovimientos.ts, new Date(q.hasta)));
 
@@ -125,10 +162,20 @@ export async function kpiRoutes(app: FastifyInstance) {
   // Export CSV de TRAZABILIDAD (contrato plantilla_envio.csv).
   // Una fila por envío (par bm+lead), enriquecida con el resultado del webhook.
   app.get("/api/trazabilidad.csv", async (req, reply) => {
-    const q = req.query as { bm?: string; desde?: string; hasta?: string };
+    const q = req.query as {
+      bm?: string;
+      desde?: string;
+      hasta?: string;
+      client?: string;
+    };
 
     const conds = [];
     if (q.bm) conds.push(eq(logMovimientos.bmId, q.bm));
+    else {
+      const bms = await getAllBms(resolveClientId(q.client));
+      const ids = bms.map((b) => b.id);
+      conds.push(inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"]));
+    }
     if (q.desde) conds.push(gte(logMovimientos.ts, new Date(q.desde)));
     if (q.hasta) conds.push(lte(logMovimientos.ts, new Date(q.hasta)));
 
@@ -169,7 +216,8 @@ export async function kpiRoutes(app: FastifyInstance) {
   });
 
   // Admin: pipelines y etapas de Kommo (para el alta de BMs).
-  app.get("/api/kommo/pipelines", async () => {
-    return getKommoClient().listPipelines();
+  app.get("/api/kommo/pipelines", async (req) => {
+    const clientId = resolveClientId((req.query as { client?: string }).client);
+    return getKommoClient(clientId).listPipelines();
   });
 }

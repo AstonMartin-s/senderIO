@@ -13,9 +13,12 @@ Contrato Traza v1 (MSG-TRZ-20260917-SND-1). **No** es el ingest viejo
 `Authorization: Bearer <TRAZA_FEED_TOKEN>` (scope `traza:feed`). Lo carga CRED
 en SenderIO y el mismo valor en Control. Sin pegar el token.
 
-- Sin `TRAZA_FEED_TOKEN` → `503 { ok:false, error:"feed_disabled" }`
-- Bearer malo → `401 { ok:false, error:"unauthorized" }`
+- Sin `TRAZA_FEED_TOKEN` en el servicio → `503 { ok:false, error:"feed_disabled" }`
+- Sin Bearer / Bearer malo → `401 { ok:false, error:"unauthorized" }`
 - `types` inválido → `400 { ok:false, error:"invalid_types" }`
+
+Prod (2026-09-17, `MSG-CRED-20260917-FEED-1`): var cargada en `senderIO`.
+Sin Bearer ya no da 503. CONTROL drena con `SENDERIO_TOKEN` de bóveda CRED.
 
 ## Query
 

@@ -10,9 +10,10 @@ import {
   Cell,
 } from "recharts";
 import { useEffect, useMemo, useState } from "react";
-import { api, usePolling, type KpiFila, type LogFiltro } from "../api";
+import { api, usePolling, type KpiFila, type KpiLista, type LogFiltro } from "../api";
 import { Card } from "../components/ui";
 import { useTheme } from "../lib/theme";
+import { useClient } from "../lib/client";
 
 const COLORS = {
   enviados: "#7c5cff",
@@ -22,6 +23,7 @@ const COLORS = {
 };
 
 export default function FunnelView() {
+  const { clientId } = useClient();
   const { theme } = useTheme();
   const dark = theme === "dark";
   const axis = dark ? "#9499a8" : "#475569";
@@ -42,8 +44,9 @@ export default function FunnelView() {
     () => ({
       desde: desde ? `${desde}T00:00:00` : undefined,
       hasta: hasta ? `${hasta}T23:59:59` : undefined,
+      client: clientId,
     }),
-    [desde, hasta]
+    [desde, hasta, clientId]
   );
   const rango = !!(desde || hasta);
 
@@ -51,13 +54,18 @@ export default function FunnelView() {
     () => api.kpisRango(filtro),
     12000
   );
+  const listasQ = usePolling<KpiLista[]>(() => api.kpisListas(filtro), 12000);
   useEffect(() => {
     refresh();
-  }, [filtro, refresh]);
+    listasQ.refresh();
+  }, [filtro, refresh, listasQ.refresh]);
 
   const kpis = data ?? [];
   const porBm = kpis.filter((k) => k.bmId !== "TOTAL");
   const total = kpis.find((k) => k.bmId === "TOTAL");
+  const filasLista = listasQ.data ?? [];
+  const listas = filasLista.filter((k) => k.lista !== "TOTAL");
+  const listaTotal = filasLista.find((k) => k.lista === "TOTAL");
 
   const funnel = [
     { etapa: "Enviados", valor: total?.enviados ?? 0, color: COLORS.enviados },
@@ -167,47 +175,132 @@ export default function FunnelView() {
           </h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
-              <tr className="border-b border-line text-left text-xs uppercase tracking-wider text-faint">
-                <th className="px-5 py-3 font-medium">BM</th>
-                <th className="px-5 py-3 text-right font-medium">Enviados</th>
-                <th className="px-5 py-3 text-right font-medium">SI</th>
-                <th className="px-5 py-3 text-right font-medium">NO</th>
-                <th className="px-5 py-3 text-right font-medium">ERROR</th>
-                <th className="px-5 py-3 text-right font-medium">% error</th>
-                <th className="px-5 py-3 text-right font-medium">% conv.</th>
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
+                <th className="w-[12%] px-4 py-3 font-medium">BM</th>
+                <th className="w-[11%] px-3 py-3 text-right font-medium">Enviados</th>
+                <th className="w-[16%] px-3 py-3 text-right font-medium leading-tight">
+                  Enviados
+                  <span className="block font-medium normal-case tracking-normal text-faint">
+                    sin error
+                  </span>
+                </th>
+                <th className="w-[10%] px-3 py-3 text-right font-medium">SI</th>
+                <th className="w-[10%] px-3 py-3 text-right font-medium">NO</th>
+                <th className="w-[11%] px-3 py-3 text-right font-medium">ERROR</th>
+                <th className="w-[15%] px-3 py-3 text-right font-medium">% error</th>
+                <th className="w-[15%] px-3 py-3 text-right font-medium">% conv.</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {porBm.map((k) => (
                 <tr key={k.bmId} className="text-fg transition-colors hover:bg-surface-2">
-                  <td className="px-5 py-3 font-semibold">{k.bmId}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{k.enviados}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{k.si}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-amber-600 dark:text-amber-300">{k.no}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-rose-600 dark:text-rose-300">{k.errores}</td>
-                  <td className={`px-5 py-3 text-right tabular-nums ${k.pctError > 15 ? "text-rose-600 dark:text-rose-300" : k.pctError > 10 ? "text-amber-600 dark:text-amber-300" : "text-muted"}`}>
+                  <td className="px-4 py-3 font-semibold">{k.bmId}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{k.enviados}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-fg">
+                    {Math.max(0, k.enviados - k.errores)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{k.si}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-amber-600 dark:text-amber-300">{k.no}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-300">{k.errores}</td>
+                  <td className={`px-3 py-3 text-right tabular-nums ${k.pctError > 15 ? "text-rose-600 dark:text-rose-300" : k.pctError > 10 ? "text-amber-600 dark:text-amber-300" : "text-muted"}`}>
                     {k.pctError}%
                   </td>
-                  <td className="px-5 py-3 text-right tabular-nums text-muted">{k.pctSi}%</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-muted">{k.pctSi}%</td>
                 </tr>
               ))}
               {total && (
                 <tr className="bg-surface-2 font-semibold text-fg">
-                  <td className="px-5 py-3">TOTAL</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{total.enviados}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{total.si}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-amber-600 dark:text-amber-300">{total.no}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-rose-600 dark:text-rose-300">{total.errores}</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{total.pctError}%</td>
-                  <td className="px-5 py-3 text-right tabular-nums">{total.pctSi}%</td>
+                  <td className="px-4 py-3">TOTAL</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{total.enviados}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    {Math.max(0, total.enviados - total.errores)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{total.si}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-amber-600 dark:text-amber-300">{total.no}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-300">{total.errores}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{total.pctError}%</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{total.pctSi}%</td>
                 </tr>
               )}
               {porBm.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-faint">
+                  <td colSpan={8} className="px-5 py-10 text-center text-faint">
                     Sin actividad registrada hoy.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="border-b border-line px-5 py-4">
+          <h3 className="text-sm font-semibold text-fg">Detalle por lista</h3>
+          <p className="mt-1 text-xs text-faint">
+            Etiqueta de Kommo al importar. Un mismo BM puede tener varias listas.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full table-fixed text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
+                <th className="w-[22%] px-4 py-3 font-medium">Lista</th>
+                <th className="w-[10%] px-3 py-3 font-medium">BM</th>
+                <th className="w-[10%] px-3 py-3 text-right font-medium">Enviados</th>
+                <th className="w-[12%] px-3 py-3 text-right font-medium leading-tight">
+                  Enviados
+                  <span className="block font-medium normal-case tracking-normal text-faint">
+                    sin error
+                  </span>
+                </th>
+                <th className="w-[8%] px-3 py-3 text-right font-medium">SI</th>
+                <th className="w-[8%] px-3 py-3 text-right font-medium">NO</th>
+                <th className="w-[10%] px-3 py-3 text-right font-medium">ERROR</th>
+                <th className="w-[10%] px-3 py-3 text-right font-medium">% error</th>
+                <th className="w-[10%] px-3 py-3 text-right font-medium">% conv.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {listas.map((k) => (
+                <tr key={k.lista} className="text-fg transition-colors hover:bg-surface-2">
+                  <td className="truncate px-4 py-3 font-semibold">{k.lista}</td>
+                  <td className="px-3 py-3 text-muted">{k.bms || "—"}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{k.enviados}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    {Math.max(0, k.enviados - k.errores)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{k.si}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-amber-600 dark:text-amber-300">{k.no}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-300">{k.errores}</td>
+                  <td className={`px-3 py-3 text-right tabular-nums ${k.pctError > 15 ? "text-rose-600 dark:text-rose-300" : k.pctError > 10 ? "text-amber-600 dark:text-amber-300" : "text-muted"}`}>
+                    {k.pctError}%
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-muted">{k.pctSi}%</td>
+                </tr>
+              ))}
+              {listaTotal && (
+                <tr className="bg-surface-2 font-semibold text-fg">
+                  <td className="px-4 py-3">TOTAL</td>
+                  <td className="px-3 py-3 text-muted">—</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{listaTotal.enviados}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    {Math.max(0, listaTotal.enviados - listaTotal.errores)}
+                  </td>
+                  <td className="px-3 py-3 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{listaTotal.si}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-amber-600 dark:text-amber-300">{listaTotal.no}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-rose-600 dark:text-rose-300">{listaTotal.errores}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{listaTotal.pctError}%</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{listaTotal.pctSi}%</td>
+                </tr>
+              )}
+              {listas.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-5 py-10 text-center text-faint">
+                    Sin etiquetas en el período. La lista se toma de la etiqueta
+                    de Kommo al enviar.
                   </td>
                 </tr>
               )}

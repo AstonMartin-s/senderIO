@@ -13,8 +13,9 @@ const STAGES_BM: NewStageInput[] = [
   { name: "ERROR", color: "#f3beff" },
 ];
 
-export async function getAllBms(): Promise<BmConfig[]> {
-  return db.select().from(bmConfig);
+export async function getAllBms(clientId?: string): Promise<BmConfig[]> {
+  if (!clientId) return db.select().from(bmConfig);
+  return db.select().from(bmConfig).where(eq(bmConfig.clientId, clientId));
 }
 
 export async function getActiveBms(): Promise<BmConfig[]> {
@@ -66,23 +67,34 @@ export async function getBmByPipeline(
   return rows[0];
 }
 
-/** Genera el próximo id "BMn" disponible mirando los existentes. */
-export async function siguienteIdBm(): Promise<string> {
-  const rows = await db.select({ id: bmConfig.id }).from(bmConfig);
+/** Prefijo de id por cliente para no chocar PKs globales (logs/plantillas). */
+function prefijoIdBm(clientId: string): { re: RegExp; prefix: string } {
+  if (clientId === "king") return { re: /^KING-BM(\d+)$/i, prefix: "KING-BM" };
+  return { re: /^BM(\d+)$/i, prefix: "BM" };
+}
+
+/** Genera el próximo id disponible dentro del cliente. */
+export async function siguienteIdBm(clientId = "mooney"): Promise<string> {
+  const { re, prefix } = prefijoIdBm(clientId);
+  const rows = await db
+    .select({ id: bmConfig.id })
+    .from(bmConfig)
+    .where(eq(bmConfig.clientId, clientId));
   let max = 0;
   for (const r of rows) {
-    const m = /^BM(\d+)$/i.exec(r.id);
+    const m = re.exec(r.id);
     if (m) max = Math.max(max, Number(m[1]));
   }
-  return `BM${max + 1}`;
+  return `${prefix}${max + 1}`;
 }
 
 export interface AltaAutomaticaInput {
   nombre: string;
   wabaId?: string | null;
   chatSourceId?: number | null;
-  /** Si se pasa, usa ese id; si no, se genera el próximo "BMn". */
+  /** Si se pasa, usa ese id; si no, se genera el próximo id del cliente. */
   id?: string;
+  clientId?: string;
 }
 
 /**
@@ -95,11 +107,12 @@ export interface AltaAutomaticaInput {
 export async function altaAutomatica(
   input: AltaAutomaticaInput
 ): Promise<BmConfig> {
-  const id = input.id?.trim() || (await siguienteIdBm());
+  const clientId = input.clientId?.trim() || "mooney";
+  const id = input.id?.trim() || (await siguienteIdBm(clientId));
   const existente = await getBm(id);
   if (existente) throw new Error(`ya existe un BM con id ${id}`);
 
-  const kommo = getKommoClient();
+  const kommo = getKommoClient(clientId);
   const pipeline = await kommo.createPipeline({
     name: input.nombre,
     stages: STAGES_BM,
@@ -116,6 +129,7 @@ export async function altaAutomatica(
 
   return createBm({
     id,
+    clientId,
     nombre: input.nombre,
     pipelineId: pipeline.id,
     stageOrigenId: base, // base propia del pipeline nuevo

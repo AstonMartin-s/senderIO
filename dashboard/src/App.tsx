@@ -12,6 +12,7 @@ import {
   IconMessage,
 } from "./components/icons";
 import { useTheme } from "./lib/theme";
+import { useClient } from "./lib/client";
 import Overview from "./views/Overview";
 import BmsView from "./views/BmsView";
 import FunnelView from "./views/FunnelView";
@@ -31,9 +32,12 @@ const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
 export default function App() {
   const [view, setView] = useState<View>("overview");
   const { theme, toggle } = useTheme();
+  const { clientId, setClientId, clients } = useClient();
   const health = usePolling(api.health, 8000);
   const online = !!health.data?.ok;
   const mode = health.data?.kommo ?? "—";
+  const actual = clients.find((c) => c.id === clientId);
+  const kingReady = clients.find((c) => c.id === "king")?.kommo.configured;
 
   async function resetDiario() {
     if (!confirm("¿Archivar el día y resetear contadores ahora?")) return;
@@ -54,7 +58,39 @@ export default function App() {
           </div>
         </div>
 
-        <nav className="mt-2 flex-1 space-y-1 px-3">
+        <div className="px-3 pb-3">
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-faint">
+            Cliente
+          </label>
+          <select
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className="w-full rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold text-fg ring-1 ring-line outline-none focus:ring-brand-500"
+          >
+            {(clients.length
+              ? clients
+              : [
+                  { id: "mooney", nombre: "Mooney" },
+                  { id: "king", nombre: "King" },
+                ]
+            ).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+          {actual && (
+            <p className="mt-1.5 truncate text-[11px] text-faint">
+              {actual.kommo.configured
+                ? actual.kommo.subdomain
+                  ? `${actual.kommo.subdomain}.kommo.com`
+                  : "Kommo configurado"
+                : "Kommo sin credenciales"}
+            </p>
+          )}
+        </div>
+
+        <nav className="mt-1 flex-1 space-y-1 px-3">
           {NAV.map((item) => {
             const active = view === item.id;
             const Icon = item.icon;
@@ -126,7 +162,15 @@ export default function App() {
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <main className="flex-1 overflow-y-auto px-8 py-6">
-          <div key={view} className="animate-fade-in">
+          <div key={`${view}-${clientId}`} className="animate-fade-in">
+            {clientId === "king" && !kingReady && (
+              <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                King está dado de alta, pero faltan{" "}
+                <code className="font-mono text-[12px]">KOMMO_KING_SUBDOMAIN</code> y{" "}
+                <code className="font-mono text-[12px]">KOMMO_KING_TOKEN</code> en
+                el entorno. Sin eso no se puede hablar con su Kommo ni crear el BM.
+              </div>
+            )}
             {view === "overview" && <Overview />}
             {view === "bms" && <BmsView />}
             {view === "plantillas" && <PlantillasView />}

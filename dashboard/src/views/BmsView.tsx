@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, usePolling, type Bm } from "../api";
+import { useClient } from "../lib/client";
 import { Card, Button, Toggle, ProgressBar, Dot } from "../components/ui";
 import {
   IconPause,
@@ -17,7 +18,11 @@ import {
 import { estadoBm, estadoMeta, pctErrorTone, timeAgo, timeUntil } from "../lib/format";
 
 export default function BmsView() {
-  const { data, refresh, mutate } = usePolling<Bm[]>(api.bms, 8000);
+  const { clientId } = useClient();
+  const { data, refresh, mutate } = usePolling<Bm[]>(
+    () => api.bms(clientId),
+    8000
+  );
   const [editing, setEditing] = useState<Bm | "new" | null>(null);
   const [altaAuto, setAltaAuto] = useState(false);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
@@ -383,9 +388,10 @@ function AltaAutoModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { clientId } = useClient();
   useEffect(() => {
-    api.siguienteIdBm().then((r) => setIdSug(r.id)).catch(() => {});
-  }, []);
+    api.siguienteIdBm(clientId).then((r) => setIdSug(r.id)).catch(() => {});
+  }, [clientId]);
 
   function set(k: keyof typeof form, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -395,11 +401,15 @@ function AltaAutoModal({
     setSaving(true);
     setError(null);
     try {
-      await api.altaBm({
-        nombre: form.nombre,
-        wabaId: form.wabaId || null,
-        chatSourceId: form.chatSourceId ? Number(form.chatSourceId) : null,
-      });
+      await api.altaBm(
+        {
+          nombre: form.nombre,
+          wabaId: form.wabaId || null,
+          chatSourceId: form.chatSourceId ? Number(form.chatSourceId) : null,
+          clientId,
+        },
+        clientId
+      );
       onSaved();
     } catch (e) {
       setError(String((e as Error).message));

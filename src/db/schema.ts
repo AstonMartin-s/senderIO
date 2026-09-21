@@ -14,11 +14,29 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
+ * clients: tenant operativo (Mooney, King, …). Cada uno tiene su cuenta Kommo
+ * y su set de BMs. Las credenciales Kommo viven en env, no acá (R7).
+ */
+export const clients = pgTable("clients", {
+  id: text("id").primaryKey(), // "mooney" | "king"
+  nombre: text("nombre").notNull(),
+  activo: boolean("activo").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
  * bm_config: un registro por BM. Es la fuente de verdad del estado de cada
  * "número/business manager" que orquestamos. Reemplaza la planilla estado_bm.
+ * El id es único global (Mooney: BM1…; King: KING-BM1…) para no cruzar logs.
  */
 export const bmConfig = pgTable("bm_config", {
-  id: text("id").primaryKey(), // "BM1", "BM2"...
+  id: text("id").primaryKey(), // "BM1", "KING-BM1"...
+  clientId: text("client_id")
+    .notNull()
+    .default("mooney")
+    .references(() => clients.id),
   nombre: text("nombre").notNull().default(""),
 
   pipelineId: bigint("pipeline_id", { mode: "number" }).notNull(),
@@ -188,6 +206,89 @@ export const kpiSnapshots = pgTable("kpi_snapshots", {
   pctSi: numeric("pct_si").notNull().default("0"),
 });
 
+/**
+ * cliente_panel: configuración del panel-cliente (paquete vendido). Un registro
+ * por cliente (client_id). SOLO recipientes de información compartida: NO
+ * configura nada del envío ni referencia ningún BM. La lógica de goteo vive en
+ * bm_config/scheduler y es totalmente independiente de esta tabla.
+ */
+export const clientePanel = pgTable("cliente_panel", {
+  clientId: text("client_id")
+    .primaryKey()
+    .references(() => clients.id),
+  // Recipiente "Oferta": describe el paquete vendido (ej. "Paquete 250 USD").
+  ofertaTitulo: text("oferta_titulo").notNull().default(""),
+  ofertaDetalle: text("oferta_detalle").notNull().default(""),
+  ofertaMontoUsd: numeric("oferta_monto_usd"),
+  // Recipiente "Mensaje/Plantilla": texto que se envía + nombre de plantilla.
+  // Informativo/compartido; no toca la rotación real de plantillas.
+  mensajeTexto: text("mensaje_texto").notNull().default(""),
+  plantillaNombre: text("plantilla_nombre").notNull().default(""),
+  // Recipiente "Redirecciones": números a los que se redirige (uno por línea/JSON).
+  redirecciones: jsonb("redirecciones").$type<string[]>().notNull().default([]),
+  // Token de acceso al panel del cliente (opaco; lo carga CRED, no va en git).
+  accesoToken: text("acceso_token"),
+  notas: text("notas").notNull().default(""),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * cliente_base_cruda: la base de datos que el cliente nos entrega, tal cual.
+ * Recipiente de recepción; no alimenta el envío.
+ */
+export const clienteBaseCruda = pgTable(
+  "cliente_base_cruda",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => clients.id),
+    telefono: text("telefono"), // E.164 normalizado si se pudo
+    telefonoRaw: text("telefono_raw"), // tal cual lo cargó el cliente
+    nombre: text("nombre"),
+    extra: jsonb("extra"), // columnas libres del CSV
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("cliente_base_cruda_client_idx").on(t.clientId)]
+);
+
+/**
+ * cliente_lista_filtrada: la lista ya depurada por el wa-checker final; son los
+ * números a los que efectivamente se les enviarán mensajes. Recipiente; el
+ * estado real de envío se cruza contra log_movimientos por teléfono (oculta BM).
+ */
+export const clienteListaFiltrada = pgTable(
+  "cliente_lista_filtrada",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    clientId: text("client_id")
+      .notNull()
+      .references(() => clients.id),
+    telefono: text("telefono").notNull(), // E.164
+    telefonoRaw: text("telefono_raw"),
+    nombre: text("nombre"),
+    extra: jsonb("extra"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("cliente_lista_filtrada_client_idx").on(t.clientId),
+    index("cliente_lista_filtrada_tel_idx").on(t.telefono),
+  ]
+);
+
+export type ClientePanel = typeof clientePanel.$inferSelect;
+export type NewClientePanel = typeof clientePanel.$inferInsert;
+export type ClienteBaseCruda = typeof clienteBaseCruda.$inferSelect;
+export type ClienteListaFiltrada = typeof clienteListaFiltrada.$inferSelect;
+
+export type Client = typeof clients.$inferSelect;
+export type NewClient = typeof clients.$inferInsert;
 export type BmConfig = typeof bmConfig.$inferSelect;
 export type NewBmConfig = typeof bmConfig.$inferInsert;
 export type Plantilla = typeof plantillas.$inferSelect;

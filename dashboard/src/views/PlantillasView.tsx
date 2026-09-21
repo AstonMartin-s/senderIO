@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { api, usePolling, type Bm, type Plantilla, type Boton } from "../api";
+import { useClient } from "../lib/client";
 import { Card, Button, Toggle } from "../components/ui";
 import {
   IconPlus,
@@ -32,8 +33,9 @@ const ESTADOS: Record<string, { label: string; cls: string }> = {
 };
 
 export default function PlantillasView() {
-  const bmsP = usePolling<Bm[]>(api.bms, 8000);
-  const plP = usePolling<Plantilla[]>(() => api.plantillas(), 5000);
+  const { clientId } = useClient();
+  const bmsP = usePolling<Bm[]>(() => api.bms(clientId), 8000);
+  const plP = usePolling<Plantilla[]>(() => api.plantillas(undefined, clientId), 5000);
   const [editing, setEditing] = useState<Plantilla | "new" | null>(null);
   const [busy, setBusy] = useState<Record<number, boolean>>({});
   const [importando, setImportando] = useState(false);
@@ -114,7 +116,7 @@ export default function PlantillasView() {
   async function importar() {
     setImportando(true);
     try {
-      const r = await api.importarPlantillas();
+      const r = await api.importarPlantillas(clientId);
       plP.refresh();
       alert(
         `Importación lista.\nImportadas: ${r.importadas}\nYa existían: ${r.salteadas}` +

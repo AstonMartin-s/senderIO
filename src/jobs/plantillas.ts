@@ -1,8 +1,8 @@
 import { and, eq, isNull, gte, isNotNull } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { logMovimientos } from "../db/schema.js";
+import { bmConfig, logMovimientos } from "../db/schema.js";
 import { getKommoClient } from "../kommo/index.js";
-import { config } from "../config.js";
+import { config, kommoFor } from "../config.js";
 
 const INTERVALO_MS = 60_000; // cada minuto
 const VENTANA_MIN = 60; // sólo envíos de la última hora
@@ -13,24 +13,22 @@ let corriendo = false;
 
 /**
  * Completa, de forma diferida, la columna `plantilla` de cada envío
- * (`movido_a_envio`) leyendo del lead el campo que el Salesbot estampa con la
- * plantilla efectivamente enviada. Esto permite rotar plantillas en Kommo sin
- * hardcodear nada: el CSV refleja lo que realmente salió, fila por fila.
- *
- * Diferido porque el Salesbot escribe el campo DESPUÉS de que el worker mueve el
- * lead a "envío". Acotado por ventana temporal y un tope por pasada para no
- * generar volumen sobre Kommo (nunca toca Meta).
+ * (`movido_a_envio`) leyendo del lead el campo que el Salesbot estampa.
+ * Usa la cuenta Kommo del cliente dueño del BM.
  */
 export async function reconciliarPlantillas(): Promise<void> {
-  const fieldId = config.kommo.cfPlantillaId;
-  if (!fieldId) return; // sin campo configurado, no hacemos nada
   if (corriendo) return;
   corriendo = true;
   try {
     const desde = new Date(Date.now() - VENTANA_MIN * 60_000);
     const pendientes = await db
-      .select({ id: logMovimientos.id, leadId: logMovimientos.leadId })
+      .select({
+        id: logMovimientos.id,
+        leadId: logMovimientos.leadId,
+        clientId: bmConfig.clientId,
+      })
       .from(logMovimientos)
+      .leftJoin(bmConfig, eq(logMovimientos.bmId, bmConfig.id))
       .where(
         and(
           eq(logMovimientos.accion, "movido_a_envio"),
@@ -42,12 +40,17 @@ export async function reconciliarPlantillas(): Promise<void> {
       .limit(MAX_POR_PASADA);
 
     if (pendientes.length === 0) return;
-    const kommo = getKommoClient();
     let resueltos = 0;
     for (const row of pendientes) {
       if (row.leadId == null) continue;
-      const plantilla = await kommo.getCampoLead(row.leadId, fieldId);
-      if (!plantilla) continue; // todavía no estampado: reintenta en la próxima pasada
+      const clientId = row.clientId ?? "mooney";
+      const fieldId = kommoFor(clientId).cfPlantillaId;
+      if (!fieldId) continue;
+      const plantilla = await getKommoClient(clientId).getCampoLead(
+        row.leadId,
+        fieldId
+      );
+      if (!plantilla) continue;
       await db
         .update(logMovimientos)
         .set({ plantilla })
@@ -67,8 +70,11 @@ export async function reconciliarPlantillas(): Promise<void> {
 }
 
 export function startPlantillasJob(): void {
-  if (!config.kommo.cfPlantillaId) {
-    console.log("[plantillas] KOMMO_CF_PLANTILLA_ID no seteado: sweep apagado");
+  const alguno = Object.values(config.kommo.byClient).some(
+    (c) => c.cfPlantillaId != null
+  );
+  if (!alguno) {
+    console.log("[plantillas] ningún CF_PLANTILLA_ID seteado: sweep apagado");
     return;
   }
   if (timer) return;

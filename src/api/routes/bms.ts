@@ -12,16 +12,19 @@ import {
 import { generarBot } from "../../services/salesbot.js";
 import { bmsDesactualizados } from "../../services/plantillas.js";
 import { notifyBmChanged } from "../../db/notify.js";
+import { resolveClientId } from "../../services/clients.js";
 
 const altaSchema = z.object({
   nombre: z.string().min(1),
   wabaId: z.string().nullable().optional(),
   chatSourceId: z.number().int().nullable().optional(),
   id: z.string().optional(),
+  clientId: z.string().optional(),
 });
 
 const createSchema = z.object({
   id: z.string().min(1),
+  clientId: z.string().optional(),
   nombre: z.string().optional(),
   pipelineId: z.number().int(),
   stageOrigenId: z.number().int(),
@@ -53,9 +56,10 @@ const createSchema = z.object({
 const patchSchema = createSchema.partial().omit({ id: true });
 
 export async function bmRoutes(app: FastifyInstance) {
-  app.get("/api/bms", async () => {
+  app.get("/api/bms", async (req) => {
+    const clientId = resolveClientId((req.query as { client?: string }).client);
     const [bms, desact] = await Promise.all([
-      getAllBms(),
+      getAllBms(clientId),
       bmsDesactualizados(),
     ]);
     return bms.map((b) => ({ ...b, botDesactualizado: desact.has(b.id) }));
@@ -69,7 +73,10 @@ export async function bmRoutes(app: FastifyInstance) {
   });
 
   // Próximo id sugerido (BMn) para el alta.
-  app.get("/api/bms/siguiente-id", async () => ({ id: await siguienteIdBm() }));
+  app.get("/api/bms/siguiente-id", async (req) => {
+    const clientId = resolveClientId((req.query as { client?: string }).client);
+    return { id: await siguienteIdBm(clientId) };
+  });
 
   // Alta automática: crea pipeline+etapas en Kommo y arma el bm_config.
   app.post("/api/bms/alta", async (req, reply) => {
@@ -78,7 +85,11 @@ export async function bmRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
     try {
-      const bm = await altaAutomatica(parsed.data);
+      const qClient = resolveClientId((req.query as { client?: string }).client);
+      const bm = await altaAutomatica({
+        ...parsed.data,
+        clientId: parsed.data.clientId ?? qClient,
+      });
       await notifyBmChanged(bm.id);
       return reply.code(201).send(bm);
     } catch (e) {
@@ -91,7 +102,11 @@ export async function bmRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const bm = await createBm(parsed.data);
+    const qClient = resolveClientId((req.query as { client?: string }).client);
+    const bm = await createBm({
+      ...parsed.data,
+      clientId: parsed.data.clientId ?? qClient,
+    });
     await notifyBmChanged(bm.id);
     return reply.code(201).send(bm);
   });

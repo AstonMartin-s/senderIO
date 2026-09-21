@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { bmConfig, logMovimientos, type BmConfig } from "../db/schema.js";
 import { minutosAleatorios } from "../lib/time.js";
-import { registrarMovimiento } from "./movimientos.js";
+import { registrarMovimiento, segmentoDeLead } from "./movimientos.js";
 import { pushEnvioAsync, pushEnvioForBmLead } from "./trazabilidad-push.js";
 
 const VENTANA_MOVIL = 20;
@@ -44,6 +44,9 @@ export async function aplicarResultado(
   tipo: ResultadoTipo,
   leadId?: number | null
 ): Promise<BmConfig> {
+  const segmento =
+    leadId != null ? await segmentoDeLead(bm.id, leadId) : null;
+
   if (tipo === "error") {
     await registrarMovimiento({
       bmId: bm.id,
@@ -51,6 +54,7 @@ export async function aplicarResultado(
       accion: "resultado_error",
       resultado: "error_3132",
       etapaDestino: bm.stageErrorId,
+      segmento,
     });
     if (leadId != null) {
       pushEnvioAsync(
@@ -111,6 +115,7 @@ export async function aplicarResultado(
     accion: tipo === "si" ? "resultado_si" : "resultado_no",
     resultado: "ok",
     etapaDestino: tipo === "si" ? bm.stageSiId : bm.stageNoId,
+    segmento,
   });
   if (leadId != null) {
     pushEnvioAsync(

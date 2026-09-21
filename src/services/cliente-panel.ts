@@ -1,0 +1,293 @@
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { db } from "../db/client.js";
+import {
+  clientePanel,
+  clienteBaseCruda,
+  clienteListaFiltrada,
+  logMovimientos,
+  type ClientePanel,
+} from "../db/schema.js";
+import { normalizePhoneE164 } from "../lib/phone.js";
+
+/**
+ * Servicio del panel-cliente. SOLO recipientes de información compartida:
+ * config (oferta / mensaje / plantilla / redirecciones), base cruda recibida,
+ * lista filtrada por wa-checker, y una traza por número que se cruza contra
+ * log_movimientos SIN exponer el BM. No configura nada del envío.
+ */
+
+const DEFAULT_PANEL = (clientId: string): ClientePanel => ({
+  clientId,
+  ofertaTitulo: "",
+  ofertaDetalle: "",
+  ofertaMontoUsd: null,
+  mensajeTexto: "",
+  plantillaNombre: "",
+  redirecciones: [],
+  accesoToken: null,
+  notas: "",
+  updatedAt: new Date(),
+});
+
+export async function getPanel(clientId: string): Promise<ClientePanel> {
+  const rows = await db
+    .select()
+    .from(clientePanel)
+    .where(eq(clientePanel.clientId, clientId));
+  return rows[0] ?? DEFAULT_PANEL(clientId);
+}
+
+export type PanelPatch = Partial<
+  Pick<
+    ClientePanel,
+    | "ofertaTitulo"
+    | "ofertaDetalle"
+    | "ofertaMontoUsd"
+    | "mensajeTexto"
+    | "plantillaNombre"
+    | "redirecciones"
+    | "notas"
+  >
+>;
+
+/** Upsert de la config del panel (nunca toca acceso_token: lo carga CRED). */
+export async function savePanel(
+  clientId: string,
+  patch: PanelPatch
+): Promise<ClientePanel> {
+  const clean: PanelPatch = {};
+  if (patch.ofertaTitulo !== undefined) clean.ofertaTitulo = patch.ofertaTitulo;
+  if (patch.ofertaDetalle !== undefined)
+    clean.ofertaDetalle = patch.ofertaDetalle;
+  if (patch.ofertaMontoUsd !== undefined)
+    clean.ofertaMontoUsd = patch.ofertaMontoUsd;
+  if (patch.mensajeTexto !== undefined) clean.mensajeTexto = patch.mensajeTexto;
+  if (patch.plantillaNombre !== undefined)
+    clean.plantillaNombre = patch.plantillaNombre;
+  if (patch.redirecciones !== undefined)
+    clean.redirecciones = patch.redirecciones;
+  if (patch.notas !== undefined) clean.notas = patch.notas;
+
+  await db
+    .insert(clientePanel)
+    .values({ clientId, ...clean, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: clientePanel.clientId,
+      set: { ...clean, updatedAt: new Date() },
+    });
+  return getPanel(clientId);
+}
+
+// ── Bases (recipientes) ──────────────────────────────────────────────────────
+
+export interface FilaBase {
+  telefonoRaw?: string | null;
+  telefono?: string | null;
+  nombre?: string | null;
+  extra?: Record<string, unknown> | null;
+}
+
+/** Reemplaza (o agrega) la base cruda del cliente. */
+export async function setBaseCruda(
+  clientId: string,
+  filas: FilaBase[],
+  { replace = true }: { replace?: boolean } = {}
+): Promise<{ insertados: number }> {
+  return db.transaction(async (tx) => {
+    if (replace) {
+      await tx
+        .delete(clienteBaseCruda)
+        .where(eq(clienteBaseCruda.clientId, clientId));
+    }
+    const rows = filas
+      .map((f) => {
+        const raw = f.telefonoRaw ?? f.telefono ?? null;
+        return {
+          clientId,
+          telefono: normalizePhoneE164(raw),
+          telefonoRaw: raw,
+          nombre: f.nombre ?? null,
+          extra: f.extra ?? null,
+        };
+      })
+      .filter((r) => r.telefonoRaw || r.nombre);
+    if (rows.length) {
+      // Inserta por lotes para bases grandes.
+      const CHUNK = 1000;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        await tx.insert(clienteBaseCruda).values(rows.slice(i, i + CHUNK));
+      }
+    }
+    return { insertados: rows.length };
+  });
+}
+
+/** Reemplaza (o agrega) la lista ya filtrada por wa-checker. Solo con teléfono válido. */
+export async function setListaFiltrada(
+  clientId: string,
+  filas: FilaBase[],
+  { replace = true }: { replace?: boolean } = {}
+): Promise<{ insertados: number; descartados: number }> {
+  return db.transaction(async (tx) => {
+    if (replace) {
+      await tx
+        .delete(clienteListaFiltrada)
+        .where(eq(clienteListaFiltrada.clientId, clientId));
+    }
+    let descartados = 0;
+    const rows = filas
+      .map((f) => {
+        const raw = f.telefonoRaw ?? f.telefono ?? null;
+        const tel = normalizePhoneE164(raw);
+        if (!tel) {
+          descartados += 1;
+          return null;
+        }
+        return {
+          clientId,
+          telefono: tel,
+          telefonoRaw: raw,
+          nombre: f.nombre ?? null,
+          extra: f.extra ?? null,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r != null);
+    if (rows.length) {
+      const CHUNK = 1000;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        await tx.insert(clienteListaFiltrada).values(rows.slice(i, i + CHUNK));
+      }
+    }
+    return { insertados: rows.length, descartados };
+  });
+}
+
+export async function contarBases(clientId: string) {
+  const [cruda] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(clienteBaseCruda)
+    .where(eq(clienteBaseCruda.clientId, clientId));
+  const [filtrada] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(clienteListaFiltrada)
+    .where(eq(clienteListaFiltrada.clientId, clientId));
+  return { baseCruda: cruda?.n ?? 0, listaFiltrada: filtrada?.n ?? 0 };
+}
+
+// ── Traza por número (oculta BM) ─────────────────────────────────────────────
+
+export interface TrazaNumero {
+  telefono: string;
+  nombre: string | null;
+  estado: "enviado" | "respondio_si" | "respondio_no" | "error" | "pendiente";
+  enviadoAt: string | null;
+  ultimaActividadAt: string | null;
+  plantilla: string | null;
+}
+
+const PRIORIDAD: Record<string, number> = {
+  resultado_si: 4,
+  resultado_no: 3,
+  resultado_error: 2,
+  movido_a_envio: 1,
+};
+
+function accionToEstado(accion: string | null): TrazaNumero["estado"] {
+  switch (accion) {
+    case "resultado_si":
+      return "respondio_si";
+    case "resultado_no":
+      return "respondio_no";
+    case "resultado_error":
+      return "error";
+    case "movido_a_envio":
+      return "enviado";
+    default:
+      return "pendiente";
+  }
+}
+
+/**
+ * Traza de la lista filtrada del cliente: por cada número de su lista, cruza
+ * contra log_movimientos por teléfono E.164 y devuelve el estado del envío.
+ * NUNCA expone bmId ni ninguna referencia de línea.
+ */
+export async function trazaPorNumero(
+  clientId: string
+): Promise<TrazaNumero[]> {
+  const lista = await db
+    .select({
+      telefono: clienteListaFiltrada.telefono,
+      nombre: clienteListaFiltrada.nombre,
+    })
+    .from(clienteListaFiltrada)
+    .where(eq(clienteListaFiltrada.clientId, clientId));
+
+  if (!lista.length) return [];
+
+  const telefonos = [...new Set(lista.map((l) => l.telefono))];
+  const movs = await db
+    .select({
+      telefono: logMovimientos.telefono,
+      accion: logMovimientos.accion,
+      templateNombre: logMovimientos.templateNombre,
+      plantilla: logMovimientos.plantilla,
+      ts: logMovimientos.ts,
+    })
+    .from(logMovimientos)
+    .where(inArray(logMovimientos.telefono, telefonos))
+    .orderBy(desc(logMovimientos.ts));
+
+  // Agrega por teléfono: mejor estado (por prioridad) + tiempos.
+  const porTel = new Map<
+    string,
+    {
+      mejorAccion: string | null;
+      enviadoAt: Date | null;
+      ultima: Date | null;
+      plantilla: string | null;
+    }
+  >();
+  for (const m of movs) {
+    if (!m.telefono) continue;
+    const cur =
+      porTel.get(m.telefono) ??
+      { mejorAccion: null, enviadoAt: null, ultima: null, plantilla: null };
+    const ts = m.ts instanceof Date ? m.ts : new Date(m.ts as unknown as string);
+    if (!cur.ultima || ts > cur.ultima) cur.ultima = ts;
+    if (m.accion === "movido_a_envio") {
+      if (!cur.enviadoAt || ts < cur.enviadoAt) cur.enviadoAt = ts;
+      cur.plantilla = cur.plantilla ?? m.templateNombre ?? m.plantilla ?? null;
+    }
+    const p = PRIORIDAD[m.accion ?? ""] ?? 0;
+    const pCur = PRIORIDAD[cur.mejorAccion ?? ""] ?? 0;
+    if (p > pCur) cur.mejorAccion = m.accion;
+    porTel.set(m.telefono, cur);
+  }
+
+  return lista.map((l) => {
+    const agg = porTel.get(l.telefono);
+    return {
+      telefono: l.telefono,
+      nombre: l.nombre,
+      estado: accionToEstado(agg?.mejorAccion ?? null),
+      enviadoAt: agg?.enviadoAt ? agg.enviadoAt.toISOString() : null,
+      ultimaActividadAt: agg?.ultima ? agg.ultima.toISOString() : null,
+      plantilla: agg?.plantilla ?? null,
+    };
+  });
+}
+
+export async function resumenTraza(clientId: string) {
+  const filas = await trazaPorNumero(clientId);
+  const acc = {
+    total: filas.length,
+    enviado: 0,
+    respondio_si: 0,
+    respondio_no: 0,
+    error: 0,
+    pendiente: 0,
+  };
+  for (const f of filas) acc[f.estado] += 1;
+  return acc;
+}

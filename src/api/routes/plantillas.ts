@@ -14,6 +14,7 @@ import {
   pushPlantillaAsync,
   syncPlantillasCatalogo,
 } from "../../services/trazabilidad-push.js";
+import { resolveClientId } from "../../services/clients.js";
 
 const botonSchema = z.object({
   text: z.string(),
@@ -41,14 +42,15 @@ const patchSchema = createSchema.partial().omit({ bmId: true });
 
 export async function plantillaRoutes(app: FastifyInstance) {
   app.get("/api/plantillas", async (req) => {
-    const q = req.query as { bm?: string };
-    return getPlantillas(q.bm);
+    const q = req.query as { bm?: string; client?: string };
+    return getPlantillas(q.bm, resolveClientId(q.client));
   });
 
   // Precarga: importa de Kommo las plantillas existentes, alineadas por WABA id.
-  app.post("/api/plantillas/importar", async (_req, reply) => {
+  app.post("/api/plantillas/importar", async (req, reply) => {
     try {
-      const res = await importarDesdeKommo();
+      const clientId = resolveClientId((req.query as { client?: string }).client);
+      const res = await importarDesdeKommo(clientId);
       // Tras importar, sincronizamos el catálogo con trazabilidad (no bloqueante).
       syncPlantillasCatalogo().catch((e) =>
         console.error("[plantillas] sync catálogo tras importar:", e)

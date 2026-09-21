@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { plantillas } from "../db/schema.js";
-import { config } from "../config.js";
+import { kommoFor } from "../config.js";
 import { clonarBotRotacion } from "../kommo/salesbot-rotacion.js";
 import { getBm } from "./bm.js";
 import { asegurarValorEstampado, marcarEnBot } from "./plantillas.js";
@@ -76,7 +76,7 @@ export async function generarBot(bmId: string): Promise<GenerarBotResultado> {
     stageNo: bm.stageNoId,
     stageError: bm.stageErrorId,
     chatSourceId: bm.chatSourceId,
-    cfId: config.kommo.cfPlantillaId ?? undefined,
+    cfId: kommoFor(bm.clientId).cfPlantillaId ?? undefined,
     plantillas: activas.map((p) => ({
       templateId: p.kommoTemplateId!,
       valor: valores.get(p.id)!,
@@ -90,7 +90,7 @@ export async function generarBot(bmId: string): Promise<GenerarBotResultado> {
   const incluidas = activas.slice(0, MAX_RAMAS).map((p) => p.id);
   await marcarEnBot(bmId, incluidas);
 
-  const kommoUrl = `https://${config.kommo.subdomain}.kommo.com/settings/widgets/`;
+  const kommoUrl = `https://${kommoFor(bm.clientId).subdomain}.kommo.com/settings/widgets/`;
 
   return {
     bot,

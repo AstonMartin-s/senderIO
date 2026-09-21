@@ -2,6 +2,54 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-21 — Admin login panel principal (HTTP Basic)
+
+- Panel de operación ya no se sirve sin auth: hook `onRequest` global con
+  HTTP Basic (`ADMIN_USER`/`ADMIN_PASSWORD`, default local `admin`/`admin321`).
+- Exentos (tienen credencial propia): `/health`, `/webhook/*`, `/traza/*`,
+  `/api/cliente/*` y `/cliente*` (panel-cliente, login por token).
+- Comparación con `timingSafeEqual`. CRED carga los reales en prod (R7).
+- Smoke: sin/mal auth → 401; `admin:admin321` → pasa (404 en ruta inexistente);
+  exentos responden su propia lógica (503 feed/panel disabled).
+
+## 2026-09-21 — Panel-cliente (paquete USD 250)
+
+- Cliente nuevo `clienteS1` en `clients` (oculto del selector de operación).
+- Superficie nueva, **read-only respecto al envío**: no toca `bm_config`,
+  `scheduler`, `plantillas` ni referencia ningún BM. Solo recipientes.
+- DB (`0015_cliente_panel.sql`): `cliente_panel` (oferta, mensaje+plantilla,
+  redirecciones, notas, acceso_token), `cliente_base_cruda`, `cliente_lista_filtrada`.
+- API `/api/cliente/*` (Bearer `CLIENTE_PANEL_TOKEN`; sin token → 503, malo → 401):
+  panel (config+conteos+resumen), base-cruda, lista-filtrada (CSV/pegar),
+  traza + traza.csv. Traza cruza `log_movimientos` por teléfono E.164 y
+  **oculta bmId**.
+- Front: `/cliente` monta `ClienteApp` (app aparte, sin vistas de BM). Tabs:
+  Resumen, Trazabilidad (por número), Bases (upload CSV), Oferta/Mensaje.
+- CRED: cargar `CLIENTE_PANEL_TOKEN` en senderIO (bearer del panel). Sin pegar valor.
+- typecheck backend + build dashboard OK. Smoke parser CSV + E.164 OK.
+
+## 2026-09-17 — ACK CRED: TRAZA_FEED_TOKEN en senderIO
+
+- REF: `MSG-CRED-20260917-FEED-1` / `MSG-SND-20260917-CRED-ACK-1`.
+- Token en Railway SenderIO / production / `senderIO`. Worker no tocado.
+  `TRAZABILIDAD_*` intactos. Redeploy `888d5882` SUCCESS (`a1d16df`).
+- Verificado SND (sin leer el valor): sin Bearer y Bearer malo → `401 unauthorized`.
+  Ya no `503 feed_disabled`.
+- Dual-run ON. No apagar push. Siguiente: CONTROL copia `SENDERIO_TOKEN`
+  desde bóveda CRED y drena (cruzar 9558 únicos).
+
+## 2026-09-17 — R1 CRED: cargar TRAZA_FEED_TOKEN
+
+- REF: `MSG-SND-20260917-CRED-TOKEN-1`.
+- Pedido a CRED: generar `TRAZA_FEED_TOKEN` y cargarlo en Railway
+  proyecto SenderIO / servicio `senderIO` (production) + el mismo valor
+  en Control (scope `traza:feed`). Sin pegar el token.
+- Path: `https://senderio-production.up.railway.app/traza/v1/feed`.
+- Deploy `a1d16df` SUCCESS (API `26bb7714` + worker `2a3cf0ab`).
+  Feed hoy `503 feed_disabled` (var ausente; correcto).
+- Dual-run ON. No apagar `TRAZABILIDAD_PUSH_ENABLED`.
+- Leftover Worker-SenderIO sigue no-op.
+
 ## 2026-09-17 — ACK cierre dump n8n (TRZ)
 
 - REF: `MSG-TRZ-20260917-SND-ACK-1`. Dump cerrado. 9558 = 4757+4895−94.

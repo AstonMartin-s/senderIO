@@ -11,6 +11,7 @@ import {
 import { Card } from "../components/ui";
 import { IconDownload } from "../components/icons";
 import { clockHHmmss, dayDM } from "../lib/format";
+import { useClient } from "../lib/client";
 
 const accionMeta: Record<string, { label: string; cls: string }> = {
   movido_a_envio: { label: "Movido a envío", cls: "bg-brand-500/12 text-brand-600 dark:text-brand-300" },
@@ -21,6 +22,7 @@ const accionMeta: Record<string, { label: string; cls: string }> = {
 };
 
 export default function LogView() {
+  const { clientId } = useClient();
   const [bm, setBm] = useState<string>("");
   const [desde, setDesde] = useState<string>("");
   const [hasta, setHasta] = useState<string>("");
@@ -30,13 +32,14 @@ export default function LogView() {
       bm: bm || undefined,
       desde: desde ? `${desde}T00:00:00` : undefined,
       hasta: hasta ? `${hasta}T23:59:59` : undefined,
+      client: clientId,
     }),
-    [bm, desde, hasta]
+    [bm, desde, hasta, clientId]
   );
 
-  const bmsQ = usePolling<Bm[]>(api.bms, 15000);
-  const kpiQ = usePolling<KpiFila[]>(api.kpisHoy, 10000);
-  const plQ = usePolling<Plantilla[]>(() => api.plantillas(), 30000);
+  const bmsQ = usePolling<Bm[]>(() => api.bms(clientId), 15000);
+  const kpiQ = usePolling<KpiFila[]>(() => api.kpisHoy(clientId), 10000);
+  const plQ = usePolling<Plantilla[]>(() => api.plantillas(undefined, clientId), 30000);
   const { data, refresh, loading, error } = usePolling<Movimiento[]>(
     () => api.movimientos(200, filtro),
     8000
@@ -154,6 +157,7 @@ export default function LogView() {
               <tr className="text-left text-[11px] uppercase tracking-wider text-faint">
                 <th className="px-5 py-2.5 font-medium">Fecha · Hora</th>
                 <th className="px-2 py-2.5 font-medium">BM</th>
+                <th className="px-2 py-2.5 font-medium">Lista</th>
                 <th className="px-2 py-2.5 font-medium">Acción</th>
                 <th className="px-2 py-2.5 font-medium">Lead</th>
                 <th className="px-2 py-2.5 font-medium">Plantilla</th>
@@ -174,6 +178,9 @@ export default function LogView() {
                     </td>
                     <td className="w-16 px-2 py-3 font-semibold text-fg">
                       {m.bmId}
+                    </td>
+                    <td className="max-w-[160px] truncate px-2 py-3 text-xs text-muted">
+                      {m.segmento || "—"}
                     </td>
                     <td className="px-2 py-3">
                       <span
@@ -205,7 +212,7 @@ export default function LogView() {
               {rows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-5 py-12 text-center text-faint"
                   >
                     Sin movimientos todavía.
