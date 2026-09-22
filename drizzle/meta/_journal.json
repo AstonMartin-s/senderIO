@@ -120,6 +120,13 @@
       "when": 1790005000000,
       "tag": "0016_paquete_total",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790010000000,
+      "tag": "0017_bm_paquete_cliente",
+      "breakpoints": true
     }
   ]
 }

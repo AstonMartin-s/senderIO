@@ -40,6 +40,8 @@ export interface Bm {
   wabaId: string | null;
   chatSourceId: number | null;
   botListo: boolean;
+  /** Cliente de paquete atribuido (id en clients); null = operación general. */
+  paqueteClienteId: string | null;
   /** El set de plantillas en rotación (switch ON) cambió respecto al bot generado. */
   botDesactualizado?: boolean;
 }

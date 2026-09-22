@@ -90,6 +90,11 @@ export const bmConfig = pgTable("bm_config", {
   wabaId: text("waba_id"),
   chatSourceId: bigint("chat_source_id", { mode: "number" }),
 
+  // Cliente de paquete al que se le atribuyen los envíos de este BM (id en
+  // tabla clients, ej. "clienteS1"). Null = operación general (Mooney/King),
+  // no cuenta para ningún panel-cliente. Solo afecta atribución/consumo, no el envío.
+  paqueteClienteId: text("paquete_cliente_id"),
+
   // El usuario confirma manualmente que importó el Salesbot generado en Kommo
   // (el bot no tiene API pública: se importa a mano).
   botListo: boolean("bot_listo").notNull().default(false),

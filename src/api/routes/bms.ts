@@ -51,6 +51,8 @@ const createSchema = z.object({
   wabaId: z.string().nullable().optional(),
   chatSourceId: z.number().int().nullable().optional(),
   botListo: z.boolean().optional(),
+  // Cliente de paquete atribuido (id en clients, ej "clienteS1"); null = general.
+  paqueteClienteId: z.string().nullable().optional(),
 });
 
 const patchSchema = createSchema.partial().omit({ id: true });

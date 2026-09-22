@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, usePolling, type Bm } from "../api";
+import { api, adminClienteApi, usePolling, type Bm } from "../api";
 import { useClient } from "../lib/client";
 import { Card, Button, Toggle, ProgressBar, Dot } from "../components/ui";
 import {
@@ -518,7 +518,17 @@ function BmModal({
     campaignNombre: bm?.campaignNombre ?? "",
     wabaId: bm?.wabaId ?? "",
     chatSourceId: bm?.chatSourceId != null ? String(bm.chatSourceId) : "",
+    paqueteClienteId: bm?.paqueteClienteId ?? "",
   });
+  const [clientesPaquete, setClientesPaquete] = useState<
+    { id: string; nombre: string }[]
+  >([]);
+  useEffect(() => {
+    adminClienteApi
+      .list()
+      .then((rows) => setClientesPaquete(rows.map((r) => ({ id: r.id, nombre: r.nombre }))))
+      .catch(() => setClientesPaquete([]));
+  }, []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -553,6 +563,7 @@ function BmModal({
       campaignNombre: form.campaignNombre || null,
       wabaId: form.wabaId || null,
       chatSourceId: num(form.chatSourceId),
+      paqueteClienteId: form.paqueteClienteId ? form.paqueteClienteId : null,
     };
     try {
       if (isNew) {
@@ -615,6 +626,30 @@ function BmModal({
               <Field label="Pausa corta mín (min)" value={form.pausaCortaMin} onChange={(v) => set("pausaCortaMin", v)} />
               <Field label="Pausa corta máx (min)" value={form.pausaCortaMax} onChange={(v) => set("pausaCortaMax", v)} />
             </div>
+          </Section>
+
+          <Section title="Cliente (operación de paquete)">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted">
+                Cliente asignado a este BM
+              </span>
+              <select
+                value={form.paqueteClienteId}
+                onChange={(e) => set("paqueteClienteId", e.target.value)}
+                className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+              >
+                <option value="">— Operación general (sin cliente)</option>
+                {clientesPaquete.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-faint">
+                Si asignás un cliente, los envíos de este BM cuentan para su
+                paquete (aislado de la operación general). No cambia el envío.
+              </span>
+            </label>
           </Section>
 
           <Section title="Trazabilidad (export CSV)">

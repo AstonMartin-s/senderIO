@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
   clients,
+  bmConfig,
   clientePanel,
   clienteBaseCruda,
   clienteListaFiltrada,
@@ -257,36 +258,58 @@ function accionToEstado(accion: string | null): TrazaNumero["estado"] {
   }
 }
 
+/** BMs atribuidos a este cliente de paquete (operación aislada). */
+export async function bmsDeCliente(clientId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: bmConfig.id })
+    .from(bmConfig)
+    .where(eq(bmConfig.paqueteClienteId, clientId));
+  return rows.map((r) => r.id);
+}
+
 /**
- * Traza de la lista filtrada del cliente: por cada número de su lista, cruza
- * contra log_movimientos por teléfono E.164 y devuelve el estado del envío.
+ * Traza de la lista filtrada del cliente. Operación AISLADA: solo cuentan los
+ * envíos hechos por los BM atribuidos a ESTE cliente (`paquete_cliente_id`),
+ * cruzados con su lista por teléfono E.164. No se mezcla con la operación
+ * general (Mooney/King). Si el cliente no tiene BM asignado → todo pendiente.
  * NUNCA expone bmId ni ninguna referencia de línea.
  */
 export async function trazaPorNumero(
   clientId: string
 ): Promise<TrazaNumero[]> {
-  const lista = await db
-    .select({
-      telefono: clienteListaFiltrada.telefono,
-      nombre: clienteListaFiltrada.nombre,
-    })
-    .from(clienteListaFiltrada)
-    .where(eq(clienteListaFiltrada.clientId, clientId));
+  const [lista, bmIds] = await Promise.all([
+    db
+      .select({
+        telefono: clienteListaFiltrada.telefono,
+        nombre: clienteListaFiltrada.nombre,
+      })
+      .from(clienteListaFiltrada)
+      .where(eq(clienteListaFiltrada.clientId, clientId)),
+    bmsDeCliente(clientId),
+  ]);
 
   if (!lista.length) return [];
 
+  // Sin BM atribuido: no hay envíos de este cliente → todo pendiente.
   const telefonos = [...new Set(lista.map((l) => l.telefono))];
-  const movs = await db
-    .select({
-      telefono: logMovimientos.telefono,
-      accion: logMovimientos.accion,
-      templateNombre: logMovimientos.templateNombre,
-      plantilla: logMovimientos.plantilla,
-      ts: logMovimientos.ts,
-    })
-    .from(logMovimientos)
-    .where(inArray(logMovimientos.telefono, telefonos))
-    .orderBy(desc(logMovimientos.ts));
+  const movs = bmIds.length
+    ? await db
+        .select({
+          telefono: logMovimientos.telefono,
+          accion: logMovimientos.accion,
+          templateNombre: logMovimientos.templateNombre,
+          plantilla: logMovimientos.plantilla,
+          ts: logMovimientos.ts,
+        })
+        .from(logMovimientos)
+        .where(
+          and(
+            inArray(logMovimientos.bmId, bmIds),
+            inArray(logMovimientos.telefono, telefonos)
+          )
+        )
+        .orderBy(desc(logMovimientos.ts))
+    : [];
 
   // Agrega por teléfono: mejor estado (por prioridad) + tiempos.
   const porTel = new Map<

@@ -2,6 +2,18 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-22 — Cliente aislado: atribución por BM
+
+- Modelo corregido: el consumo/traza de un cliente de paquete NO se cruza con
+  la operación general. Sale SOLO de los envíos de los BM atribuidos a ese
+  cliente (`bm_config.paquete_cliente_id`). Migración `0017`.
+- Sin BM asignado → todo pendiente (enviados = 0). El "10" anterior era ruido
+  del log compartido de Mooney; ya no cuenta.
+- Traza `trazaPorNumero`: intersección lista filtrada ∩ envíos de BM del cliente.
+- UI: sección "Cliente (operación de paquete)" en el modal de BM (selector de
+  cliente). ClienteS1 usará p.ej. BM1 asignado.
+- No cambia la lógica de envío; solo atribución. typecheck + build OK.
+
 ## 2026-09-21 — Fix normalización teléfono AR (consumo del paquete)
 
 - Causa del "10 enviados": números de la lista cargados sin país (ej.
