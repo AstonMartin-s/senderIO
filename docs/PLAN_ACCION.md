@@ -2,6 +2,23 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-21 — Admin: pestaña Clientes
+
+- Tab **Clientes** en el panel de operación (Basic Auth). Lista paquetes
+  (hoy `clienteS1`; Mooney/King no entran).
+- Misma pantalla del cliente: paquete, gestión que cargó (oferta, texto,
+  plantilla, redirecciones, notas), traza por número **sin BM**.
+- Bajar CSV (base cruda, lista filtrada, traza) y subir CSV/pegar.
+- API `/api/admin/clientes/*` (no usa el token del cliente).
+
+## 2026-09-21 — ACK CRED: acceso panel-cliente entregado
+
+- REF: `MSG-CRED-20260921-SND-ACCESO-2` / `MSG-SND-20260921-CRED-ACCESO-ACK-1`.
+- Path prod: `https://senderio-production.up.railway.app/cliente` · id `clienteS1`.
+- Login = token de bóveda `boveda/senderio/real/cliente-panel.env`
+  (`CLIENTE_PANEL_TOKEN`). No es `ADMIN_*` ni `SENDERIO_TOKEN` del feed.
+- SND no lee ni pega el valor (R7).
+
 ## 2026-09-21 — Panel-cliente: cupo del paquete (500)
 
 - Campo `paquete_total` en `cliente_panel` (default 500, editable). Migración

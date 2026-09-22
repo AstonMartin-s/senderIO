@@ -14,6 +14,7 @@ import { kpiRoutes } from "./routes/kpis.js";
 import { plantillaRoutes } from "./routes/plantillas.js";
 import { clientRoutes } from "./routes/clients.js";
 import { clientePanelRoutes } from "./routes/cliente-panel.js";
+import { adminClienteRoutes } from "./routes/admin-clientes.js";
 import { trazaRoutes } from "./routes/traza.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -89,6 +90,7 @@ async function build() {
 
   await app.register(clientRoutes);
   await app.register(clientePanelRoutes);
+  await app.register(adminClienteRoutes);
   await app.register(trazaRoutes);
   await app.register(webhookRoutes);
   await app.register(bmRoutes);

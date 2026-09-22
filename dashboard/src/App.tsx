@@ -10,6 +10,7 @@ import {
   IconSun,
   IconMoon,
   IconMessage,
+  IconUsers,
 } from "./components/icons";
 import { useTheme } from "./lib/theme";
 import { useClient } from "./lib/client";
@@ -18,8 +19,9 @@ import BmsView from "./views/BmsView";
 import FunnelView from "./views/FunnelView";
 import LogView from "./views/LogView";
 import PlantillasView from "./views/PlantillasView";
+import ClientesView from "./views/ClientesView";
 
-type View = "overview" | "bms" | "plantillas" | "funnel" | "log";
+type View = "overview" | "bms" | "plantillas" | "funnel" | "log" | "clientes";
 
 const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "overview", label: "Overview", icon: IconGrid },
@@ -27,6 +29,7 @@ const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "plantillas", label: "Plantillas", icon: IconMessage },
   { id: "funnel", label: "Funnel & KPIs", icon: IconFunnel },
   { id: "log", label: "Log en vivo", icon: IconActivity },
+  { id: "clientes", label: "Clientes", icon: IconUsers },
 ];
 
 export default function App() {
@@ -176,6 +179,7 @@ export default function App() {
             {view === "plantillas" && <PlantillasView />}
             {view === "funnel" && <FunnelView />}
             {view === "log" && <LogView />}
+            {view === "clientes" && <ClientesView />}
           </div>
         </main>
       </div>

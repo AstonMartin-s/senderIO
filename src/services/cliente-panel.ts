@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
+  clients,
   clientePanel,
   clienteBaseCruda,
   clienteListaFiltrada,
@@ -164,6 +165,51 @@ export async function setListaFiltrada(
     }
     return { insertados: rows.length, descartados };
   });
+}
+
+const OPERATIVOS = ["mooney", "king"];
+
+/** Clientes de paquete (no los tenants de operación Mooney/King). */
+export async function listClientesPaquete() {
+  const rows = await db
+    .select()
+    .from(clients)
+    .where(sql`${clients.id} not in ('mooney', 'king')`);
+  const out = [];
+  for (const c of rows) {
+    const [bases, paquete, panel] = await Promise.all([
+      contarBases(c.id),
+      consumoPaquete(c.id),
+      getPanel(c.id),
+    ]);
+    out.push({
+      id: c.id,
+      nombre: c.nombre,
+      activo: c.activo,
+      ofertaTitulo: panel.ofertaTitulo,
+      plantillaNombre: panel.plantillaNombre,
+      bases,
+      paquete,
+    });
+  }
+  return out;
+}
+
+export function esClientePaquete(id: string): boolean {
+  return /^[a-zA-Z0-9_-]{1,40}$/.test(id) && !OPERATIVOS.includes(id);
+}
+
+export async function filasBase(clientId: string, tipo: "cruda" | "filtrada") {
+  const table = tipo === "cruda" ? clienteBaseCruda : clienteListaFiltrada;
+  return db
+    .select({
+      telefono: table.telefono,
+      telefonoRaw: table.telefonoRaw,
+      nombre: table.nombre,
+      extra: table.extra,
+    })
+    .from(table)
+    .where(eq(table.clientId, clientId));
 }
 
 export async function contarBases(clientId: string) {

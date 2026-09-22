@@ -352,6 +352,41 @@ export const clienteApi = {
   trazaCsvUrl: () => "/api/cliente/traza.csv",
 };
 
+export interface ClientePaqueteRow {
+  id: string;
+  nombre: string;
+  activo: boolean;
+  ofertaTitulo: string;
+  plantillaNombre: string;
+  bases: { baseCruda: number; listaFiltrada: number };
+  paquete: ClientePanelResp["paquete"];
+}
+
+/** Admin (Basic Auth del panel de operación). Misma data del cliente, sin BM. */
+export const adminClienteApi = {
+  list: () => req<ClientePaqueteRow[]>("/api/admin/clientes"),
+  detalle: (id: string) =>
+    req<ClientePanelResp>(`/api/admin/clientes/${encodeURIComponent(id)}`),
+  traza: (id: string) =>
+    req<TrazaNumero[]>(`/api/admin/clientes/${encodeURIComponent(id)}/traza`),
+  subirBaseCruda: (id: string, filas: FilaBaseUpload[], replace = true) =>
+    req<{ ok: boolean; insertados: number }>(
+      `/api/admin/clientes/${encodeURIComponent(id)}/base-cruda`,
+      { method: "POST", body: JSON.stringify({ filas, replace }) }
+    ),
+  subirListaFiltrada: (id: string, filas: FilaBaseUpload[], replace = true) =>
+    req<{ ok: boolean; insertados: number; descartados: number }>(
+      `/api/admin/clientes/${encodeURIComponent(id)}/lista-filtrada`,
+      { method: "POST", body: JSON.stringify({ filas, replace }) }
+    ),
+  csvBaseCruda: (id: string) =>
+    `/api/admin/clientes/${encodeURIComponent(id)}/base-cruda.csv`,
+  csvListaFiltrada: (id: string) =>
+    `/api/admin/clientes/${encodeURIComponent(id)}/lista-filtrada.csv`,
+  csvTraza: (id: string) =>
+    `/api/admin/clientes/${encodeURIComponent(id)}/traza.csv`,
+};
+
 export interface LogFiltro {
   bm?: string;
   desde?: string; // ISO local, ej "2026-06-25T00:00:00"
