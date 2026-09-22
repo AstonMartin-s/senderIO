@@ -199,51 +199,6 @@ export function esClientePaquete(id: string): boolean {
   return /^[a-zA-Z0-9_-]{1,40}$/.test(id) && !OPERATIVOS.includes(id);
 }
 
-/**
- * Diagnóstico del cruce de la lista filtrada contra log_movimientos.
- * Solo lectura. Explica por qué el consumo puede ser bajo (mismatch de formato
- * de teléfono o simplemente aún no enviados).
- */
-export async function diagCruce(clientId: string) {
-  const lista = await db
-    .select({ telefono: clienteListaFiltrada.telefono })
-    .from(clienteListaFiltrada)
-    .where(eq(clienteListaFiltrada.clientId, clientId));
-  const telefonos = [...new Set(lista.map((l) => l.telefono))];
-
-  // ¿Cuántos de la lista aparecen en log_movimientos (match exacto E.164)?
-  const matched = telefonos.length
-    ? await db
-        .select({ telefono: logMovimientos.telefono })
-        .from(logMovimientos)
-        .where(inArray(logMovimientos.telefono, telefonos))
-        .groupBy(logMovimientos.telefono)
-    : [];
-
-  // Muestras de formato de cada lado (para ver mismatches +549 vs +54, etc).
-  const muestraLista = telefonos.slice(0, 8);
-  const muestraLog = await db
-    .select({ telefono: logMovimientos.telefono })
-    .from(logMovimientos)
-    .where(sql`${logMovimientos.telefono} is not null`)
-    .orderBy(desc(logMovimientos.ts))
-    .limit(8);
-
-  // Total de teléfonos distintos con envío en el log (universo del match posible).
-  const [totalLog] = await db
-    .select({ n: sql<number>`count(distinct ${logMovimientos.telefono})::int` })
-    .from(logMovimientos)
-    .where(sql`${logMovimientos.telefono} is not null`);
-
-  return {
-    listaTotal: telefonos.length,
-    matchExacto: matched.length,
-    logTelefonosDistintos: totalLog?.n ?? 0,
-    muestraLista,
-    muestraLog: muestraLog.map((r) => r.telefono),
-  };
-}
-
 export async function filasBase(clientId: string, tipo: "cruda" | "filtrada") {
   const table = tipo === "cruda" ? clienteBaseCruda : clienteListaFiltrada;
   return db

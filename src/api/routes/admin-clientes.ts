@@ -2,7 +2,6 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import {
   consumoPaquete,
   contarBases,
-  diagCruce,
   esClientePaquete,
   filasBase,
   getPanel,
@@ -47,14 +46,6 @@ export async function adminClienteRoutes(app: FastifyInstance) {
       consumoPaquete(id),
     ]);
     return { panel, bases, resumen, paquete };
-  });
-
-  app.get("/api/admin/clientes/:id/diag", async (req, reply) => {
-    const id = (req.params as { id: string }).id;
-    if (!esClientePaquete(id)) {
-      return reply.code(404).send({ ok: false, error: "not_found" });
-    }
-    return diagCruce(id);
   });
 
   app.get("/api/admin/clientes/:id/traza", async (req, reply) => {
