@@ -77,7 +77,7 @@ export const bmConfig = pgTable("bm_config", {
   // Si quedan en null, el export cae a valores derivados (id/nombre) o defaults.
   // Origen de la base: "crm" (interna, es_interno=true) | "spam" (externa, false).
   fuenteEnvio: text("fuente_envio").notNull().default("crm"),
-  plataforma: text("plataforma"), // "pam" | "mooney"
+  plataforma: text("plataforma"), // "pam" | "mooney" (Mooneymaker) | id de cliente de paquete
   templateNombre: text("template_nombre"), // nombre de la plantilla Meta
   // Texto/cuerpo de la plantilla que se envía (lo que el lead recibe). Fijo por
   // BM; se vuelca tal cual en el CSV de trazabilidad (columna mensaje_texto).

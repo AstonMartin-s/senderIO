@@ -513,7 +513,7 @@ function BmModal({
     pausaCortaMax: String(bm?.pausaCortaMax ?? 10),
     umbralErroresConsecutivos: String(bm?.umbralErroresConsecutivos ?? 5),
     fuenteEnvio: bm?.fuenteEnvio ?? "crm",
-    plataforma: bm?.plataforma ?? "",
+    plataforma: bm?.paqueteClienteId || bm?.plataforma || "",
     campaignId: bm?.campaignId ?? "",
     campaignNombre: bm?.campaignNombre ?? "",
     wabaId: bm?.wabaId ?? "",
@@ -635,7 +635,18 @@ function BmModal({
               </span>
               <select
                 value={form.paqueteClienteId}
-                onChange={(e) => set("paqueteClienteId", e.target.value)}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    paqueteClienteId: id,
+                    plataforma: id
+                      ? id
+                      : clientesPaquete.some((c) => c.id === f.plataforma)
+                        ? "mooney"
+                        : f.plataforma,
+                  }));
+                }}
                 className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="">— Operación general (sin cliente)</option>
@@ -672,13 +683,25 @@ function BmModal({
                   Plataforma
                 </span>
                 <select
-                  value={form.plataforma}
+                  value={form.paqueteClienteId || form.plataforma}
                   onChange={(e) => set("plataforma", e.target.value)}
-                  className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+                  disabled={!!form.paqueteClienteId}
+                  className="w-full rounded-lg border border-line-strong bg-surface-2 px-3 py-2 text-sm text-fg outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30 disabled:opacity-80"
                 >
-                  <option value="">— (default: mooney)</option>
-                  <option value="mooney">mooney</option>
-                  <option value="pam">pam</option>
+                  {form.paqueteClienteId ? (
+                    <option value={form.paqueteClienteId}>
+                      {clientesPaquete.find((c) => c.id === form.paqueteClienteId)
+                        ?.nombre ?? form.paqueteClienteId}
+                    </option>
+                  ) : (
+                    <>
+                      <option value="">— (default: mooney)</option>
+                      <optgroup label="Mooneymaker">
+                        <option value="mooney">mooney</option>
+                        <option value="pam">pam</option>
+                      </optgroup>
+                    </>
+                  )}
                 </select>
               </label>
               <Field label="campaign_id_externo" value={form.campaignId} onChange={(v) => set("campaignId", v)} placeholder={`default: ${bm?.id ?? "ID del BM"}`} />
