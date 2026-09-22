@@ -2,6 +2,18 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-21 — Fix normalización teléfono AR (consumo del paquete)
+
+- Causa del "10 enviados": números de la lista cargados sin país (ej.
+  "11 6467-5373") quedaban `+1164675373` (país 1) y no cruzaban con la
+  operación (`+549…`) en `log_movimientos`. El cruce sale SOLO de esta DB
+  (envíos propios); no se mezcla con otras bases.
+- Fix en `normalizePhoneE164`: sin `+` y sin empezar con 54, 10–11 dígitos →
+  `+549`. Smoke 7/8 (el "FAIL" es el caso `00…`, comportamiento preexistente).
+- Aplica de acá en adelante: hay que **recargar la lista filtrada** de clienteS1
+  para renormalizar lo ya guardado. No se muta la base automáticamente.
+- Se quitó el endpoint `/diag` (no exponer cruce con datos internos).
+
 ## 2026-09-21 — Admin: pestaña Clientes
 
 - Tab **Clientes** en el panel de operación (Basic Auth). Lista paquetes
