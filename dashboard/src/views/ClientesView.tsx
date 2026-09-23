@@ -4,6 +4,7 @@ import {
   api,
   type ClientePaqueteRow,
   type ClientePanelResp,
+  type ReconcileEtiqueta,
   type ResumenClienteEtiqueta,
   type TrazaNumero,
 } from "../api";
@@ -130,6 +131,22 @@ export default function ClientesView() {
   const [traza, setTraza] = useState<TrazaNumero[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [resumen, setResumen] = useState<ResumenClienteEtiqueta[]>([]);
+  const [kommo, setKommo] = useState<ReconcileEtiqueta | null>(null);
+  const [kommoBusy, setKommoBusy] = useState(false);
+  const [kommoErr, setKommoErr] = useState<string | null>(null);
+
+  const reconciliarKommo = useCallback(async (id: string) => {
+    setKommoBusy(true);
+    setKommoErr(null);
+    setKommo(null);
+    try {
+      setKommo(await api.clienteEtiquetaKommo(id));
+    } catch (e) {
+      setKommoErr(String((e as Error).message ?? e));
+    } finally {
+      setKommoBusy(false);
+    }
+  }, []);
 
   const cargarLista = useCallback(async () => {
     const [rows, res] = await Promise.all([
@@ -156,6 +173,8 @@ export default function ClientesView() {
 
   useEffect(() => {
     if (!sel) return;
+    setKommo(null);
+    setKommoErr(null);
     cargarDetalle(sel).catch((e) => setErr(String(e.message ?? e)));
   }, [sel, cargarDetalle]);
 
@@ -259,6 +278,48 @@ export default function ClientesView() {
           <p className="text-sm text-faint">No hay clientes de paquete.</p>
         )}
       </div>
+
+      {sel && (
+        <Card className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-fg">
+                Estado en Kommo (en vivo)
+              </h3>
+              <p className="mt-0.5 text-[11px] text-faint">
+                Cuenta los leads del tablero por etapa (incluye movimientos
+                manuales). Solo lectura; no altera las métricas del log.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={kommoBusy}
+              onClick={() => sel && reconciliarKommo(sel)}
+            >
+              <IconRefresh className="h-4 w-4" />
+              {kommoBusy ? "Consultando…" : "Actualizar desde Kommo"}
+            </Button>
+          </div>
+          {kommoErr && (
+            <p className="mt-3 text-sm text-rose-400">{kommoErr}</p>
+          )}
+          {kommo && (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Enviados" value={kommo.enviados} />
+              <StatCard label="Respondieron SÍ" value={kommo.si} />
+              <StatCard label="Respondieron NO" value={kommo.no} />
+              <StatCard label="Error" value={kommo.error} />
+            </div>
+          )}
+          {kommo && (
+            <p className="mt-2 text-[11px] text-faint">
+              % error {kommo.pctError}% · % conv. {kommo.pctSi}% · {kommo.pipelines}{" "}
+              BM con leads de este cliente.
+            </p>
+          )}
+        </Card>
+      )}
 
       {sel && p && pq && (
         <>

@@ -136,6 +136,18 @@ export interface ResumenClienteEtiqueta {
   pctSi: number;
 }
 
+export interface ReconcileEtiqueta {
+  id: string;
+  nombre: string;
+  enviados: number;
+  si: number;
+  no: number;
+  error: number;
+  pctError: number;
+  pctSi: number;
+  pipelines: number;
+}
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   // Solo mandamos Content-Type JSON si hay body; con DELETE/GET sin cuerpo,
   // Fastify rechaza ("Body cannot be empty when content-type is application/json").
@@ -210,6 +222,10 @@ export const api = {
     req<KpiLista[]>(`/api/kpis/listas${clientQS(f.client, filtroQS(f))}`),
   clientesEtiqueta: () =>
     req<ClienteEtiqueta[]>("/api/clientes-etiqueta"),
+  clienteEtiquetaKommo: (id: string) =>
+    req<ReconcileEtiqueta>(
+      `/api/clientes-etiqueta/${encodeURIComponent(id)}/kommo`
+    ),
   clientesEtiquetaResumen: (f: { desde?: string; hasta?: string } = {}) => {
     const p: string[] = [];
     if (f.desde) p.push(`desde=${encodeURIComponent(f.desde)}`);

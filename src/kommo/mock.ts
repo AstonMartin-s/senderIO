@@ -78,6 +78,21 @@ export class MockKommoClient implements KommoClient {
     return count;
   }
 
+  async listStageLeadsWithTag(
+    _pipelineId: number,
+    statusId: number,
+    max = 500
+  ): Promise<Array<{ id: number; tag: string | null }>> {
+    const out: Array<{ id: number; tag: string | null }> = [];
+    for (const lead of this.leads.values()) {
+      if (lead.status_id === statusId) {
+        out.push({ id: lead.id, tag: `Lista${(lead.id % 12) + 1}` });
+        if (out.length >= max) break;
+      }
+    }
+    return out;
+  }
+
   async getLeadMeta(
     leadId: number
   ): Promise<{ telefono: string | null; segmento: string | null }> {

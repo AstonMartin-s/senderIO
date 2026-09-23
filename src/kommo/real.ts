@@ -137,6 +137,40 @@ export class RealKommoClient implements KommoClient {
     return leads.length;
   }
 
+  async listStageLeadsWithTag(
+    pipelineId: number,
+    statusId: number,
+    max = 500
+  ): Promise<Array<{ id: number; tag: string | null }>> {
+    const out: Array<{ id: number; tag: string | null }> = [];
+    const perPage = 250;
+    for (let page = 1; out.length < max; page++) {
+      const params = new URLSearchParams();
+      params.set("filter[statuses][0][pipeline_id]", String(pipelineId));
+      params.set("filter[statuses][0][status_id]", String(statusId));
+      params.set("limit", String(perPage));
+      params.set("page", String(page));
+      const res = await this.req(`/leads?${params.toString()}`);
+      if (res.status === 204) break;
+      const json = (await res.json()) as {
+        _embedded?: {
+          leads?: Array<{
+            id: number;
+            _embedded?: { tags?: Array<{ name?: string }> };
+          }>;
+        };
+      };
+      const leads = json._embedded?.leads ?? [];
+      if (!leads.length) break;
+      for (const l of leads) {
+        out.push({ id: l.id, tag: l._embedded?.tags?.[0]?.name ?? null });
+        if (out.length >= max) break;
+      }
+      if (leads.length < perPage) break;
+    }
+    return out;
+  }
+
   async getLeadMeta(
     leadId: number
   ): Promise<{ telefono: string | null; segmento: string | null }> {

@@ -10,6 +10,7 @@ import {
   computeResumenClientesEtiqueta,
 } from "../../services/kpis.js";
 import { getClientesEtiqueta } from "../../services/clientes-etiqueta.js";
+import { reconcileClienteEtiqueta } from "../../services/reconcile-etiqueta.js";
 import { getKommoClient } from "../../kommo/index.js";
 import { resolveClientId } from "../../services/clients.js";
 import { getAllBms } from "../../services/bm.js";
@@ -92,6 +93,19 @@ export async function kpiRoutes(app: FastifyInstance) {
 
   // Clientes por etiqueta (para el selector del funnel y la sección Clientes).
   app.get("/api/clientes-etiqueta", async () => getClientesEtiqueta());
+
+  // Reconciliación EN VIVO contra el tablero de Kommo (refleja movimientos
+  // manuales). Solo lectura; no toca log_movimientos.
+  app.get("/api/clientes-etiqueta/:id/kommo", async (req, reply) => {
+    const id = (req.params as { id: string }).id;
+    try {
+      return await reconcileClienteEtiqueta(id);
+    } catch (err) {
+      return reply
+        .code(400)
+        .send({ ok: false, error: String((err as Error).message ?? err) });
+    }
+  });
 
   // Métricas por cliente-etiqueta (sección Clientes). Sin rango = día en curso.
   app.get("/api/clientes-etiqueta/resumen", async (req) => {

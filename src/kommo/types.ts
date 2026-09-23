@@ -82,6 +82,17 @@ export interface KommoClient {
   ): Promise<number>;
 
   /**
+   * Lista leads de una etapa con su primera etiqueta (tag). Solo lectura, para
+   * reconciliar métricas por cliente-etiqueta contra el tablero real de Kommo.
+   * Pagina hasta `max` leads.
+   */
+  listStageLeadsWithTag(
+    pipelineId: number,
+    statusId: number,
+    max?: number
+  ): Promise<Array<{ id: number; tag: string | null }>>;
+
+  /**
    * Devuelve metadatos del lead para trazabilidad: teléfono (E.164) del contacto
    * principal y segmento (primera etiqueta del lead). Best-effort: no debe
    * frenar el envío si falla (devuelve null en los campos que no resuelva).
