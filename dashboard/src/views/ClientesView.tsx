@@ -131,6 +131,8 @@ export default function ClientesView() {
   const [traza, setTraza] = useState<TrazaNumero[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [resumen, setResumen] = useState<ResumenClienteEtiqueta[]>([]);
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
   const [kommo, setKommo] = useState<ReconcileEtiqueta | null>(null);
   const [kommoBusy, setKommoBusy] = useState(false);
   const [kommoErr, setKommoErr] = useState<string | null>(null);
@@ -151,12 +153,17 @@ export default function ClientesView() {
   const cargarLista = useCallback(async () => {
     const [rows, res] = await Promise.all([
       adminClienteApi.list(),
-      api.clientesEtiquetaResumen().catch(() => [] as ResumenClienteEtiqueta[]),
+      api
+        .clientesEtiquetaResumen({
+          desde: desde ? `${desde}T00:00:00` : undefined,
+          hasta: hasta ? `${hasta}T23:59:59` : undefined,
+        })
+        .catch(() => [] as ResumenClienteEtiqueta[]),
     ]);
     setLista(rows);
     setResumen(res);
     setSel((cur) => cur ?? rows[0]?.id ?? null);
-  }, []);
+  }, [desde, hasta]);
 
   const cargarDetalle = useCallback(async (id: string) => {
     const [d, t] = await Promise.all([
@@ -180,6 +187,11 @@ export default function ClientesView() {
 
   const p = data?.panel;
   const pq = data?.paquete;
+  const rango = !!(desde || hasta);
+  const periodoLabel = rango
+    ? `${desde || "…"} → ${hasta || "…"}`
+    : "hoy";
+  const metSel = resumen.find((r) => r.id === sel);
 
   return (
     <div className="space-y-5">
@@ -205,12 +217,44 @@ export default function ClientesView() {
       {err && <p className="text-sm text-rose-400">{err}</p>}
 
       <Card className="overflow-hidden">
-        <div className="border-b border-line px-4 py-3">
-          <h3 className="text-sm font-bold text-fg">Métricas por etiqueta (hoy)</h3>
-          <p className="mt-1 text-[11px] text-faint">
-            Se arma con la etiqueta de Kommo del envío. CRM agrupa todo lo que no
-            reclama otro cliente.
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+          <div>
+            <h3 className="text-sm font-bold text-fg">
+              Métricas por etiqueta ({periodoLabel})
+            </h3>
+            <p className="mt-1 text-[11px] text-faint">
+              Lo que el log registró en el período, por etiqueta del envío. El
+              tablero de Kommo es el stock actual e incluye días anteriores.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => setDesde(e.target.value)}
+              title="Desde"
+              className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+            />
+            <span className="text-xs text-faint">→</span>
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => setHasta(e.target.value)}
+              title="Hasta"
+              className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+            />
+            {rango && (
+              <button
+                onClick={() => {
+                  setDesde("");
+                  setHasta("");
+                }}
+                className="rounded-lg px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
+              >
+                Hoy
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -247,7 +291,7 @@ export default function ClientesView() {
               {!resumen.length && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-faint">
-                    Sin actividad hoy.
+                    Sin actividad en el período.
                   </td>
                 </tr>
               )}
@@ -271,7 +315,7 @@ export default function ClientesView() {
             <span className="text-[11px] text-faint">
               {c.paquete.conTope
                 ? `${c.paquete.consumidos}/${c.paquete.total}`
-                : `${c.paquete.consumidos} envíos`}{" "}
+                : `${resumen.find((r) => r.id === c.id)?.enviados ?? 0} envíos`}{" "}
               · cruda {c.bases.baseCruda} · filtrada {c.bases.listaFiltrada}
             </span>
           </button>
@@ -337,13 +381,18 @@ export default function ClientesView() {
                 </span>
               </div>
               <span className="text-sm text-muted tabular-nums">
-                <span className="font-bold text-fg">{pq.consumidos}</span> enviados
-                {pq.conTope && (
+                <span className="font-bold text-fg">
+                  {pq.conTope ? pq.consumidos : (metSel?.enviados ?? 0)}
+                </span>{" "}
+                enviados
+                {pq.conTope ? (
                   <>
                     {" "}·{" "}
                     <span className="font-bold text-fg">{pq.restantes}</span>{" "}
                     restantes
                   </>
+                ) : (
+                  <span className="text-faint"> · {periodoLabel}</span>
                 )}
               </span>
             </div>
@@ -355,8 +404,9 @@ export default function ClientesView() {
               />
             )}
             <p className="mt-2 text-[11px] text-faint">
-              Cuenta envíos OK (enviado + SÍ + NO). Los errores no descuentan (
-              {pq.errores} con error).
+              {pq.conTope
+                ? `Cuenta envíos OK del paquete (enviado + SÍ + NO), sin filtrar por fecha. Los errores no descuentan (${pq.errores} con error).`
+                : `Envíos del período (${periodoLabel}). El stock del tablero se ve en «Estado en Kommo».`}
             </p>
           </Card>
 
