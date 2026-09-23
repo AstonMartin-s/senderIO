@@ -11,6 +11,7 @@ import {
   IconMoon,
   IconMessage,
   IconUsers,
+  IconCheck,
 } from "./components/icons";
 import { useTheme } from "./lib/theme";
 import { useClient } from "./lib/client";
@@ -20,8 +21,16 @@ import FunnelView from "./views/FunnelView";
 import LogView from "./views/LogView";
 import PlantillasView from "./views/PlantillasView";
 import ClientesView from "./views/ClientesView";
+import VerificadorView from "./views/VerificadorView";
 
-type View = "overview" | "bms" | "plantillas" | "funnel" | "log" | "clientes";
+type View =
+  | "overview"
+  | "bms"
+  | "plantillas"
+  | "funnel"
+  | "log"
+  | "clientes"
+  | "verificador";
 
 const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "overview", label: "Overview", icon: IconGrid },
@@ -30,6 +39,7 @@ const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "funnel", label: "Funnel & KPIs", icon: IconFunnel },
   { id: "log", label: "Log en vivo", icon: IconActivity },
   { id: "clientes", label: "Clientes", icon: IconUsers },
+  { id: "verificador", label: "Verificador WA", icon: IconCheck },
 ];
 
 export default function App() {
@@ -180,6 +190,7 @@ export default function App() {
             {view === "funnel" && <FunnelView />}
             {view === "log" && <LogView />}
             {view === "clientes" && <ClientesView />}
+            {view === "verificador" && <VerificadorView />}
           </div>
         </main>
       </div>
