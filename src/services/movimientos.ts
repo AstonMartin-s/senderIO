@@ -41,7 +41,26 @@ export async function registrarMovimiento(params: {
   });
 }
 
-/** Etiqueta de Kommo guardada al enviar ese lead (para SI/NO/ERROR). */
+/** Último envío de este lead (para atribuir un SI/NO/ERROR si el bot lo movió de pipeline). */
+export async function ultimoEnvioDeLead(
+  leadId: number
+): Promise<{ bmId: string; ts: Date } | null> {
+  const rows = await db
+    .select({ bmId: logMovimientos.bmId, ts: logMovimientos.ts })
+    .from(logMovimientos)
+    .where(
+      and(
+        eq(logMovimientos.leadId, leadId),
+        eq(logMovimientos.accion, "movido_a_envio")
+      )
+    )
+    .orderBy(desc(logMovimientos.ts))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  const ts = row.ts instanceof Date ? row.ts : new Date(row.ts as unknown as string);
+  return { bmId: row.bmId, ts };
+}
 export async function segmentoDeLead(
   bmId: string,
   leadId: number
