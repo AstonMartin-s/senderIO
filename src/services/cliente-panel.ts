@@ -294,7 +294,9 @@ export async function trazaPorNumero(
     getClientesEtiqueta(),
   ]);
 
-  if (!lista.length) return [];
+  // Sin lista filtrada no hay universo de números: se cuentan solo los envíos
+  // cuya etiqueta es de ESTE cliente (no el historial del BM).
+  if (!lista.length) return trazaDesdeEtiqueta(clientId, clientes);
 
   const telefonos = [...new Set(lista.map((l) => l.telefono))];
   const bmSet = new Set(bmIds);
@@ -381,6 +383,83 @@ export async function trazaPorNumero(
       plantilla: agg?.plantilla ?? null,
     };
   });
+}
+
+/** Envíos del log atribuidos por etiqueta, uno por teléfono. Sin cruce de lista. */
+async function trazaDesdeEtiqueta(
+  clientId: string,
+  clientes: Awaited<ReturnType<typeof getClientesEtiqueta>>
+): Promise<TrazaNumero[]> {
+  const rawMovs = await db
+    .select({
+      telefono: logMovimientos.telefono,
+      bmId: logMovimientos.bmId,
+      leadId: logMovimientos.leadId,
+      segmento: logMovimientos.segmento,
+      accion: logMovimientos.accion,
+      templateNombre: logMovimientos.templateNombre,
+      plantilla: logMovimientos.plantilla,
+      ts: logMovimientos.ts,
+    })
+    .from(logMovimientos)
+    .where(
+      inArray(logMovimientos.accion, [
+        "movido_a_envio",
+        "resultado_si",
+        "resultado_no",
+        "resultado_error",
+      ])
+    )
+    .orderBy(desc(logMovimientos.ts));
+
+  const segPorLead = new Map<string, string>();
+  for (const m of rawMovs) {
+    if (m.accion === "movido_a_envio" && m.leadId != null && m.segmento) {
+      const k = `${m.bmId}:${m.leadId}`;
+      if (!segPorLead.has(k)) segPorLead.set(k, m.segmento);
+    }
+  }
+
+  const porTel = new Map<
+    string,
+    {
+      mejorAccion: string | null;
+      enviadoAt: Date | null;
+      ultima: Date | null;
+      plantilla: string | null;
+    }
+  >();
+  for (const m of rawMovs) {
+    if (!m.telefono) continue;
+    const heredada =
+      m.leadId != null ? segPorLead.get(`${m.bmId}:${m.leadId}`) : undefined;
+    const seg = m.segmento || heredada || null;
+    const etq = clientes.find((c) => c.id === clienteDeSegmento(seg, clientes));
+    // Solo etiqueta propia. El BM asignado no arrastra el historial general.
+    if (!etq || etq.catchAll || etq.id !== clientId) continue;
+    const cur =
+      porTel.get(m.telefono) ??
+      { mejorAccion: null, enviadoAt: null, ultima: null, plantilla: null };
+    const ts = m.ts instanceof Date ? m.ts : new Date(m.ts as unknown as string);
+    if (!cur.ultima || ts > cur.ultima) cur.ultima = ts;
+    if (m.accion === "movido_a_envio") {
+      if (!cur.enviadoAt || ts < cur.enviadoAt) cur.enviadoAt = ts;
+      cur.plantilla = cur.plantilla ?? m.templateNombre ?? m.plantilla ?? null;
+    }
+    const p = PRIORIDAD[m.accion ?? ""] ?? 0;
+    const pCur = PRIORIDAD[cur.mejorAccion ?? ""] ?? 0;
+    if (p > pCur) cur.mejorAccion = m.accion;
+    porTel.set(m.telefono, cur);
+  }
+
+  return [...porTel.entries()].map(([telefono, agg]) => ({
+    telefono,
+    nombre: null,
+    estado: accionToEstado(agg.mejorAccion),
+    enviadoAt: agg.enviadoAt ? agg.enviadoAt.toISOString() : null,
+    ultimaActividadAt: agg.ultima ? agg.ultima.toISOString() : null,
+    plantilla: agg.plantilla,
+  }));
 }
 
 export async function resumenTraza(clientId: string) {
