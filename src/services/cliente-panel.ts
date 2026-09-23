@@ -324,12 +324,22 @@ export async function trazaPorNumero(
       if (!segPorLead.has(k)) segPorLead.set(k, m.segmento);
     }
   }
+  // La ETIQUETA manda por encima de la asignación de BM: si el lead lleva la
+  // etiqueta de un cliente concreto, cuenta para ESE cliente aunque el BM esté
+  // asignado a otro. Solo si la etiqueta cae en el catch-all (CRM) vale la
+  // asignación de BM (`paquete_cliente_id`).
   const perteneceAlCliente = (m: (typeof rawMovs)[number]): boolean => {
-    if (bmSet.has(m.bmId)) return true;
     const heredada =
       m.leadId != null ? segPorLead.get(`${m.bmId}:${m.leadId}`) : undefined;
     const seg = m.segmento || heredada || null;
-    return clienteDeSegmento(seg, clientes) === clientId;
+    const etqId = clienteDeSegmento(seg, clientes);
+    const etqCliente = clientes.find((c) => c.id === etqId);
+    if (etqCliente && !etqCliente.catchAll) {
+      // Etiqueta de un cliente concreto → manda la etiqueta.
+      return etqId === clientId;
+    }
+    // Etiqueta genérica (catch-all) → vale la asignación de BM.
+    return bmSet.has(m.bmId);
   };
   const movs = rawMovs.filter(perteneceAlCliente);
 
