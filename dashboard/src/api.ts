@@ -117,6 +117,25 @@ export interface KpiLista {
   pctSi: number;
 }
 
+export interface ClienteEtiqueta {
+  id: string;
+  nombre: string;
+  etiquetas: string[];
+  catchAll: boolean;
+}
+
+export interface ResumenClienteEtiqueta {
+  id: string;
+  nombre: string;
+  etiquetas: string[];
+  enviados: number;
+  si: number;
+  no: number;
+  errores: number;
+  pctError: number;
+  pctSi: number;
+}
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   // Solo mandamos Content-Type JSON si hay body; con DELETE/GET sin cuerpo,
   // Fastify rechaza ("Body cannot be empty when content-type is application/json").
@@ -189,6 +208,16 @@ export const api = {
     req<KpiFila[]>(`/api/kpis/rango${clientQS(f.client, filtroQS(f))}`),
   kpisListas: (f: LogFiltro = {}) =>
     req<KpiLista[]>(`/api/kpis/listas${clientQS(f.client, filtroQS(f))}`),
+  clientesEtiqueta: () =>
+    req<ClienteEtiqueta[]>("/api/clientes-etiqueta"),
+  clientesEtiquetaResumen: (f: { desde?: string; hasta?: string } = {}) => {
+    const p: string[] = [];
+    if (f.desde) p.push(`desde=${encodeURIComponent(f.desde)}`);
+    if (f.hasta) p.push(`hasta=${encodeURIComponent(f.hasta)}`);
+    return req<ResumenClienteEtiqueta[]>(
+      `/api/clientes-etiqueta/resumen${p.length ? `?${p.join("&")}` : ""}`
+    );
+  },
   movimientos: (limit = 60, f: LogFiltro = {}) =>
     req<Movimiento[]>(
       `/api/movimientos${clientQS(f.client, `limit=${limit}${filtroQS(f)}`)}`
@@ -394,6 +423,7 @@ export interface LogFiltro {
   desde?: string; // ISO local, ej "2026-06-25T00:00:00"
   hasta?: string;
   client?: string;
+  etiqueta?: string; // id de cliente-etiqueta para agrupar por etiqueta de Kommo
 }
 
 function filtroQS(f: LogFiltro): string {
@@ -401,6 +431,7 @@ function filtroQS(f: LogFiltro): string {
   if (f.bm) p.push(`bm=${encodeURIComponent(f.bm)}`);
   if (f.desde) p.push(`desde=${encodeURIComponent(f.desde)}`);
   if (f.hasta) p.push(`hasta=${encodeURIComponent(f.hasta)}`);
+  if (f.etiqueta) p.push(`etiqueta=${encodeURIComponent(f.etiqueta)}`);
   return p.length ? `&${p.join("&")}` : "";
 }
 

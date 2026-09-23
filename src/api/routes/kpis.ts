@@ -7,7 +7,9 @@ import {
   computeSnapshot,
   computeRange,
   computeListas,
+  computeResumenClientesEtiqueta,
 } from "../../services/kpis.js";
+import { getClientesEtiqueta } from "../../services/clientes-etiqueta.js";
 import { getKommoClient } from "../../kommo/index.js";
 import { resolveClientId } from "../../services/clients.js";
 import { getAllBms } from "../../services/bm.js";
@@ -45,22 +47,63 @@ export async function kpiRoutes(app: FastifyInstance) {
   });
 
   // KPIs en vivo para un rango de fechas (desde el log). Sin rango = hoy.
+  // `etiqueta` = id de cliente-etiqueta para agrupar por etiqueta de Kommo.
   app.get("/api/kpis/rango", async (req) => {
-    const q = req.query as { desde?: string; hasta?: string; client?: string };
+    const q = req.query as {
+      desde?: string;
+      hasta?: string;
+      client?: string;
+      etiqueta?: string;
+    };
     const clientId = resolveClientId(q.client);
-    if (!q.desde && !q.hasta) return computeSnapshot(todayLocal(), clientId);
-    return computeRange(q.desde, q.hasta, clientId);
+    if (!q.desde && !q.hasta) {
+      if (!q.etiqueta) return computeSnapshot(todayLocal(), clientId);
+      const hoy = todayLocal();
+      return computeRange(
+        `${hoy}T00:00:00`,
+        `${hoy}T23:59:59`,
+        clientId,
+        q.etiqueta
+      );
+    }
+    return computeRange(q.desde, q.hasta, clientId, q.etiqueta);
   });
 
   // KPIs por etiqueta/lista de Kommo (mismo BM puede tener varias listas).
   app.get("/api/kpis/listas", async (req) => {
-    const q = req.query as { desde?: string; hasta?: string; client?: string };
+    const q = req.query as {
+      desde?: string;
+      hasta?: string;
+      client?: string;
+      etiqueta?: string;
+    };
     const clientId = resolveClientId(q.client);
     if (!q.desde && !q.hasta) {
       const hoy = todayLocal();
-      return computeListas(`${hoy}T00:00:00`, `${hoy}T23:59:59`, clientId);
+      return computeListas(
+        `${hoy}T00:00:00`,
+        `${hoy}T23:59:59`,
+        clientId,
+        q.etiqueta
+      );
     }
-    return computeListas(q.desde, q.hasta, clientId);
+    return computeListas(q.desde, q.hasta, clientId, q.etiqueta);
+  });
+
+  // Clientes por etiqueta (para el selector del funnel y la sección Clientes).
+  app.get("/api/clientes-etiqueta", async () => getClientesEtiqueta());
+
+  // Métricas por cliente-etiqueta (sección Clientes). Sin rango = día en curso.
+  app.get("/api/clientes-etiqueta/resumen", async (req) => {
+    const q = req.query as { desde?: string; hasta?: string };
+    if (!q.desde && !q.hasta) {
+      const hoy = todayLocal();
+      return computeResumenClientesEtiqueta(
+        `${hoy}T00:00:00`,
+        `${hoy}T23:59:59`
+      );
+    }
+    return computeResumenClientesEtiqueta(q.desde, q.hasta);
   });
 
   // Log de movimientos en vivo (sin mensaje_enviado: textos largos que frenan el panel).

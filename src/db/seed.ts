@@ -77,8 +77,10 @@ const seeds: NewBmConfig[] = [
 async function main() {
   console.log("[seed] asegurando clientes...");
   for (const c of [
-    { id: "mooney", nombre: "Mooney" },
-    { id: "king", nombre: "King" },
+    { id: "mooney", nombre: "CRM", etiquetas: [] as string[] },
+    { id: "king", nombre: "King", etiquetas: [] as string[] },
+    { id: "piliking", nombre: "Piliking", etiquetas: ["piliking"] },
+    { id: "clienteS1", nombre: "ClienteS1", etiquetas: ["clientes1"] },
   ]) {
     await db.insert(clients).values(c).onConflictDoNothing();
   }

@@ -52,7 +52,7 @@ export function ClientProvider({ children }: { children: ReactNode }) {
         setClients([
           {
             id: "mooney",
-            nombre: "Mooney",
+            nombre: "CRM",
             activo: true,
             kommo: { configured: true, subdomain: null, hasCfPlantilla: false },
           },

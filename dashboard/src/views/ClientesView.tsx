@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   adminClienteApi,
+  api,
   type ClientePaqueteRow,
   type ClientePanelResp,
+  type ResumenClienteEtiqueta,
   type TrazaNumero,
 } from "../api";
 import { parseCsv } from "../lib/csv";
@@ -127,10 +129,15 @@ export default function ClientesView() {
   const [data, setData] = useState<ClientePanelResp | null>(null);
   const [traza, setTraza] = useState<TrazaNumero[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [resumen, setResumen] = useState<ResumenClienteEtiqueta[]>([]);
 
   const cargarLista = useCallback(async () => {
-    const rows = await adminClienteApi.list();
+    const [rows, res] = await Promise.all([
+      adminClienteApi.list(),
+      api.clientesEtiquetaResumen().catch(() => [] as ResumenClienteEtiqueta[]),
+    ]);
     setLista(rows);
+    setResumen(res);
     setSel((cur) => cur ?? rows[0]?.id ?? null);
   }, []);
 
@@ -177,6 +184,58 @@ export default function ClientesView() {
       </div>
 
       {err && <p className="text-sm text-rose-400">{err}</p>}
+
+      <Card className="overflow-hidden">
+        <div className="border-b border-line px-4 py-3">
+          <h3 className="text-sm font-bold text-fg">Métricas por etiqueta (hoy)</h3>
+          <p className="mt-1 text-[11px] text-faint">
+            Se arma con la etiqueta de Kommo del envío. CRM agrupa todo lo que no
+            reclama otro cliente.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
+                <th className="px-4 py-2.5 font-medium">Cliente</th>
+                <th className="px-3 py-2.5 text-right font-medium">Enviados</th>
+                <th className="px-3 py-2.5 text-right font-medium">SI</th>
+                <th className="px-3 py-2.5 text-right font-medium">NO</th>
+                <th className="px-3 py-2.5 text-right font-medium">ERROR</th>
+                <th className="px-3 py-2.5 text-right font-medium">% error</th>
+                <th className="px-3 py-2.5 text-right font-medium">% conv.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {resumen.map((c) => (
+                <tr key={c.id} className="text-fg hover:bg-surface-2">
+                  <td className="px-4 py-2.5 font-semibold">
+                    {c.nombre}
+                    {c.etiquetas.length > 0 && (
+                      <span className="ml-2 text-[11px] font-normal text-faint">
+                        {c.etiquetas.join(", ")}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">{c.enviados}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{c.si}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-amber-600 dark:text-amber-300">{c.no}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-300">{c.errores}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted">{c.pctError}%</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-muted">{c.pctSi}%</td>
+                </tr>
+              ))}
+              {!resumen.length && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-faint">
+                    Sin actividad hoy.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <div className="flex flex-wrap gap-2">
         {lista.map((c) => (

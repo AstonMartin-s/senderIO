@@ -5,9 +5,10 @@ export async function clientRoutes(app: FastifyInstance) {
   app.get("/api/clients", async () => {
     const rows = await getClients();
     return rows
-      // clienteS1 (panel-cliente del paquete) no es un tenant de operación Kommo:
-      // no debe aparecer en el selector del panel interno.
-      .filter((c) => c.id !== "clienteS1")
+      // Los clientes-etiqueta (Piliking, ClienteS1, …) no son tenants de
+      // operación Kommo: no van en el selector del panel interno. Se detectan
+      // por tener etiquetas propias. Mooney/King quedan como tenants.
+      .filter((c) => !(Array.isArray(c.etiquetas) && c.etiquetas.length > 0))
       .map((c) => ({
       id: c.id,
       nombre: c.nombre,

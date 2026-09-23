@@ -10,7 +10,14 @@ import {
   Cell,
 } from "recharts";
 import { useEffect, useMemo, useState } from "react";
-import { api, usePolling, type KpiFila, type KpiLista, type LogFiltro } from "../api";
+import {
+  api,
+  usePolling,
+  type ClienteEtiqueta,
+  type KpiFila,
+  type KpiLista,
+  type LogFiltro,
+} from "../api";
 import { Card } from "../components/ui";
 import { useTheme } from "../lib/theme";
 import { useClient } from "../lib/client";
@@ -40,13 +47,19 @@ export default function FunnelView() {
 
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  const [cliente, setCliente] = useState(""); // "" = todos (por etiqueta)
+  const [clientesEtq, setClientesEtq] = useState<ClienteEtiqueta[]>([]);
+  useEffect(() => {
+    api.clientesEtiqueta().then(setClientesEtq).catch(() => {});
+  }, []);
   const filtro = useMemo<LogFiltro>(
     () => ({
       desde: desde ? `${desde}T00:00:00` : undefined,
       hasta: hasta ? `${hasta}T23:59:59` : undefined,
       client: clientId,
+      etiqueta: cliente || undefined,
     }),
-    [desde, hasta, clientId]
+    [desde, hasta, clientId, cliente]
   );
   const rango = !!(desde || hasta);
 
@@ -81,6 +94,19 @@ export default function FunnelView() {
           {rango ? "Período seleccionado" : "Día en curso (hoy)"}
         </span>
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={cliente}
+            onChange={(e) => setCliente(e.target.value)}
+            title="Cliente (por etiqueta)"
+            className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+          >
+            <option value="">Todos los clientes</option>
+            {clientesEtq.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
           <input
             type="date"
             value={desde}

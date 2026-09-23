@@ -21,6 +21,10 @@ export const clients = pgTable("clients", {
   id: text("id").primaryKey(), // "mooney" | "king"
   nombre: text("nombre").notNull(),
   activo: boolean("activo").notNull().default(true),
+  // Prefijos de etiqueta de Kommo (segmento) que pertenecen a este cliente.
+  // Match case-insensitive por prefijo, así "Piliking" agrupa "Piliking 2", etc.
+  // Vacío = cliente sin etiquetas propias. "mooney" es el catch-all (el resto).
+  etiquetas: jsonb("etiquetas").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

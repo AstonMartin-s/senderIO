@@ -2,6 +2,11 @@ import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { bmConfig, kpiSnapshots, logMovimientos } from "../db/schema.js";
 import { config } from "../config.js";
+import {
+  clienteDeSegmento,
+  getClientesEtiqueta,
+  type ClienteEtiqueta,
+} from "./clientes-etiqueta.js";
 
 async function bmIdsDeCliente(clientId?: string): Promise<string[] | null> {
   if (!clientId) return null;
@@ -47,7 +52,42 @@ const colsKpi = {
   bmId: logMovimientos.bmId,
   accion: logMovimientos.accion,
   ts: logMovimientos.ts,
+  leadId: logMovimientos.leadId,
+  segmento: logMovimientos.segmento,
 };
+
+interface RowEtq {
+  bmId: string;
+  accion: string;
+  leadId: number | null;
+  segmento: string | null;
+}
+
+/**
+ * Filtra movimientos por cliente-etiqueta. La etiqueta (segmento) se captura al
+ * enviar; SI/NO/ERROR la heredan del envío del mismo lead. Sin clienteId, no
+ * filtra (todas las etiquetas). El resto no reclamado cae en el catch-all (CRM).
+ */
+function filtrarPorClienteEtiqueta<T extends RowEtq>(
+  rows: T[],
+  clientes: ClienteEtiqueta[],
+  clienteId?: string
+): T[] {
+  if (!clienteId) return rows;
+  const porLead = new Map<string, string>();
+  for (const r of rows) {
+    if (r.accion === "movido_a_envio" && r.leadId != null && r.segmento) {
+      const k = `${r.bmId}:${r.leadId}`;
+      if (!porLead.has(k)) porLead.set(k, r.segmento);
+    }
+  }
+  return rows.filter((r) => {
+    const heredada =
+      r.leadId != null ? porLead.get(`${r.bmId}:${r.leadId}`) : undefined;
+    const seg = r.segmento || heredada || null;
+    return clienteDeSegmento(seg, clientes) === clienteId;
+  });
+}
 
 const colsKpiLista = {
   bmId: logMovimientos.bmId,
@@ -208,7 +248,8 @@ function agregar(rows: { bmId: string; accion: string }[]): KpiFila[] {
 export async function computeRange(
   desde?: string,
   hasta?: string,
-  clientId?: string
+  clientId?: string,
+  etiquetaClienteId?: string
 ): Promise<KpiFila[]> {
   const conds = [];
   if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
@@ -224,7 +265,9 @@ export async function computeRange(
         inArray(logMovimientos.accion, [...ACCIONES_KPI])
       )
     );
-  return agregar(rows);
+  if (!etiquetaClienteId) return agregar(rows);
+  const clientes = await getClientesEtiqueta();
+  return agregar(filtrarPorClienteEtiqueta(rows, clientes, etiquetaClienteId));
 }
 
 function cerrarFilaLista(f: KpiLista) {
@@ -321,7 +364,8 @@ function agregarPorLista(
 export async function computeListas(
   desde?: string,
   hasta?: string,
-  clientId?: string
+  clientId?: string,
+  etiquetaClienteId?: string
 ): Promise<KpiLista[]> {
   const conds = [];
   if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
@@ -337,7 +381,103 @@ export async function computeListas(
         inArray(logMovimientos.accion, [...ACCIONES_KPI])
       )
     );
-  return agregarPorLista(rows);
+  if (!etiquetaClienteId) return agregarPorLista(rows);
+  const clientes = await getClientesEtiqueta();
+  return agregarPorLista(
+    filtrarPorClienteEtiqueta(rows, clientes, etiquetaClienteId)
+  );
+}
+
+export interface ResumenClienteEtiqueta {
+  id: string;
+  nombre: string;
+  etiquetas: string[];
+  enviados: number;
+  si: number;
+  no: number;
+  errores: number;
+  pctError: number;
+  pctSi: number;
+}
+
+/**
+ * Resumen por cliente-etiqueta para la sección Clientes. Reparte todos los
+ * movimientos del rango (o del día) entre los clientes según su etiqueta, con
+ * herencia por lead. El catch-all (CRM) se queda con el resto.
+ */
+export async function computeResumenClientesEtiqueta(
+  desde?: string,
+  hasta?: string
+): Promise<ResumenClienteEtiqueta[]> {
+  const conds = [];
+  if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
+  if (hasta) conds.push(lte(logMovimientos.ts, new Date(hasta)));
+  const [rows, clientes] = await Promise.all([
+    db
+      .select(colsKpiLista)
+      .from(logMovimientos)
+      .where(
+        and(
+          ...(conds.length ? conds : []),
+          inArray(logMovimientos.accion, [...ACCIONES_KPI])
+        )
+      ),
+    getClientesEtiqueta(),
+  ]);
+
+  const porLead = new Map<string, string>();
+  for (const r of rows) {
+    if (r.accion === "movido_a_envio" && r.leadId != null && r.segmento) {
+      const k = `${r.bmId}:${r.leadId}`;
+      if (!porLead.has(k)) porLead.set(k, r.segmento);
+    }
+  }
+
+  const acc = new Map<string, ResumenClienteEtiqueta>();
+  for (const c of clientes) {
+    acc.set(c.id, {
+      id: c.id,
+      nombre: c.nombre,
+      etiquetas: c.etiquetas,
+      enviados: 0,
+      si: 0,
+      no: 0,
+      errores: 0,
+      pctError: 0,
+      pctSi: 0,
+    });
+  }
+
+  for (const r of rows) {
+    const heredada =
+      r.leadId != null ? porLead.get(`${r.bmId}:${r.leadId}`) : undefined;
+    const seg = r.segmento || heredada || null;
+    const cid = clienteDeSegmento(seg, clientes);
+    const f = acc.get(cid);
+    if (!f) continue;
+    switch (r.accion) {
+      case "movido_a_envio":
+        f.enviados++;
+        break;
+      case "resultado_si":
+        f.si++;
+        break;
+      case "resultado_no":
+        f.no++;
+        break;
+      case "resultado_error":
+        f.errores++;
+        break;
+    }
+  }
+
+  const out = [...acc.values()];
+  for (const f of out) {
+    const base = f.si + f.no + f.errores;
+    f.pctError = base ? Math.round((f.errores / base) * 10000) / 100 : 0;
+    f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
+  }
+  return out;
 }
 
 /** Persiste el snapshot del día en kpi_snapshots. */
