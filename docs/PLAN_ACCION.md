@@ -2,6 +2,24 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-23 — Cliente por etiqueta + CRM (catch-all)
+
+- Nuevo agrupado de métricas por **etiqueta de Kommo** (`log_movimientos.segmento`
+  = primera tag del lead). Cada cliente reclama prefijos (`clients.etiquetas`),
+  match case-insensitive por prefijo (Piliking agrupa "Piliking 2", etc.).
+- `mooney` pasa a mostrarse como **CRM** y es el **catch-all**: se queda con todo
+  lo que no reclame otro cliente. Piliking → `["piliking"]`, ClienteS1 →
+  `["clientes1"]`. Migración `0018`.
+- Funnel & KPIs: selector **Cliente** (por etiqueta). Sin seleccionar = todos.
+  Filtra embudo, por-BM y por-lista (con herencia SI/NO/ERROR por lead).
+- Sección Clientes: tabla **Métricas por etiqueta** (enviados/SI/NO/ERROR/%) por
+  cliente, día en curso. Endpoints `/api/clientes-etiqueta` y `…/resumen`.
+- Selector de tenant global (`/api/clients`) excluye los clientes-etiqueta.
+- **Fix seguridad**: la exención de Basic Auth `/api/cliente` matcheaba
+  `/api/clientes-etiqueta` (quedaba público). Ahora exige `/api/cliente/`.
+- El envío NO cambia: esto es solo agrupado/atribución de métricas.
+- typecheck + build OK. Deploy prod SUCCESS (`de4e520` + fix `512f2d04`/auth).
+
 ## 2026-09-22 — Cliente aislado: atribución por BM
 
 - Modelo corregido: el consumo/traza de un cliente de paquete NO se cruza con
