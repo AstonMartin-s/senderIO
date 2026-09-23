@@ -41,7 +41,12 @@ function basicAuthExento(url: string): boolean {
     url === "/health" ||
     url.startsWith("/webhook") ||
     url.startsWith("/traza") ||
-    url.startsWith("/api/cliente") ||
+    // Solo el panel-cliente (/api/cliente/…, Bearer propio) queda exento. Ojo:
+    // exigimos la barra para no exentar rutas como /api/clientes-etiqueta, que
+    // son del panel de operación y sí requieren Basic Auth.
+    url === "/api/cliente" ||
+    url.startsWith("/api/cliente/") ||
+    url.startsWith("/api/cliente?") ||
     // El panel-cliente (/cliente) tiene su propio login por token; su HTML/estáticos
     // no deben pedir Basic Auth del panel de operación.
     url === "/cliente" ||
