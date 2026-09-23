@@ -2,6 +2,18 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-23 — Reconciliar métricas de cliente contra Kommo (en vivo)
+
+- Los movimientos MANUALES en Kommo no pasan por worker/webhook, así que no
+  entran al `log_movimientos` ni a las métricas del funnel/etiqueta.
+- Nuevo `/api/clientes-etiqueta/:id/kommo` (solo lectura): recorre las etapas de
+  cada BM, lee la primera tag de cada lead y las reparte por cliente-etiqueta.
+  `enviados = ENVIO ∪ SI ∪ NO ∪ ERROR`; SI/NO/ERROR = leads en esa etapa.
+- UI: bloque "Estado en Kommo (en vivo)" en la sección Clientes (botón por
+  cliente). No altera el log ni el goteo. Kommo `listStageLeadsWithTag`.
+- Requiere que el pipeline testeado (ej. Ambienger) esté dado de alta como BM
+  en `bm_config` (si no, no se cuenta).
+
 ## 2026-09-23 — Cliente por etiqueta + CRM (catch-all)
 
 - Nuevo agrupado de métricas por **etiqueta de Kommo** (`log_movimientos.segmento`
