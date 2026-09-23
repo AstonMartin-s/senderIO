@@ -341,9 +341,10 @@ export interface ClientePanelResp {
     pendiente: number;
   };
   paquete: {
-    total: number;
+    conTope: boolean;
+    total: number | null;
     consumidos: number;
-    restantes: number;
+    restantes: number | null;
     errores: number;
     pct: number;
     activado: boolean;

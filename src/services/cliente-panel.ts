@@ -10,6 +10,10 @@ import {
   type ClientePanel,
 } from "../db/schema.js";
 import { normalizePhoneE164 } from "../lib/phone.js";
+import {
+  clienteDeSegmento,
+  getClientesEtiqueta,
+} from "./clientes-etiqueta.js";
 
 /**
  * Servicio del panel-cliente. SOLO recipientes de información compartida:
@@ -24,6 +28,7 @@ const DEFAULT_PANEL = (clientId: string): ClientePanel => ({
   ofertaDetalle: "",
   ofertaMontoUsd: null,
   paqueteTotal: 500,
+  paqueteConTope: false,
   mensajeTexto: "",
   plantillaNombre: "",
   redirecciones: [],
@@ -268,16 +273,16 @@ export async function bmsDeCliente(clientId: string): Promise<string[]> {
 }
 
 /**
- * Traza de la lista filtrada del cliente. Operación AISLADA: solo cuentan los
- * envíos hechos por los BM atribuidos a ESTE cliente (`paquete_cliente_id`),
- * cruzados con su lista por teléfono E.164. No se mezcla con la operación
- * general (Mooney/King). Si el cliente no tiene BM asignado → todo pendiente.
- * NUNCA expone bmId ni ninguna referencia de línea.
+ * Traza de la lista filtrada del cliente. Un envío se atribuye a ESTE cliente
+ * si el BM está asignado a él (`paquete_cliente_id`) O si el lead lleva su
+ * etiqueta de Kommo (segmento, con herencia SI/NO/ERROR por lead). Se cruza con
+ * su lista por teléfono E.164, así que nunca cuenta números de otra lista. No
+ * expone bmId ni ninguna referencia de línea.
  */
 export async function trazaPorNumero(
   clientId: string
 ): Promise<TrazaNumero[]> {
-  const [lista, bmIds] = await Promise.all([
+  const [lista, bmIds, clientes] = await Promise.all([
     db
       .select({
         telefono: clienteListaFiltrada.telefono,
@@ -286,30 +291,47 @@ export async function trazaPorNumero(
       .from(clienteListaFiltrada)
       .where(eq(clienteListaFiltrada.clientId, clientId)),
     bmsDeCliente(clientId),
+    getClientesEtiqueta(),
   ]);
 
   if (!lista.length) return [];
 
-  // Sin BM atribuido: no hay envíos de este cliente → todo pendiente.
   const telefonos = [...new Set(lista.map((l) => l.telefono))];
-  const movs = bmIds.length
-    ? await db
-        .select({
-          telefono: logMovimientos.telefono,
-          accion: logMovimientos.accion,
-          templateNombre: logMovimientos.templateNombre,
-          plantilla: logMovimientos.plantilla,
-          ts: logMovimientos.ts,
-        })
-        .from(logMovimientos)
-        .where(
-          and(
-            inArray(logMovimientos.bmId, bmIds),
-            inArray(logMovimientos.telefono, telefonos)
-          )
-        )
-        .orderBy(desc(logMovimientos.ts))
-    : [];
+  const bmSet = new Set(bmIds);
+  // Traemos los movimientos de ESTOS teléfonos (cualquier BM) y atribuimos por
+  // BM asignado o por etiqueta del lead. El cruce por teléfono mantiene aislada
+  // la lista del cliente.
+  const rawMovs = await db
+    .select({
+      telefono: logMovimientos.telefono,
+      bmId: logMovimientos.bmId,
+      leadId: logMovimientos.leadId,
+      segmento: logMovimientos.segmento,
+      accion: logMovimientos.accion,
+      templateNombre: logMovimientos.templateNombre,
+      plantilla: logMovimientos.plantilla,
+      ts: logMovimientos.ts,
+    })
+    .from(logMovimientos)
+    .where(inArray(logMovimientos.telefono, telefonos))
+    .orderBy(desc(logMovimientos.ts));
+
+  // Herencia de etiqueta por lead (SI/NO/ERROR heredan la del envío).
+  const segPorLead = new Map<string, string>();
+  for (const m of rawMovs) {
+    if (m.accion === "movido_a_envio" && m.leadId != null && m.segmento) {
+      const k = `${m.bmId}:${m.leadId}`;
+      if (!segPorLead.has(k)) segPorLead.set(k, m.segmento);
+    }
+  }
+  const perteneceAlCliente = (m: (typeof rawMovs)[number]): boolean => {
+    if (bmSet.has(m.bmId)) return true;
+    const heredada =
+      m.leadId != null ? segPorLead.get(`${m.bmId}:${m.leadId}`) : undefined;
+    const seg = m.segmento || heredada || null;
+    return clienteDeSegmento(seg, clientes) === clientId;
+  };
+  const movs = rawMovs.filter(perteneceAlCliente);
 
   // Agrega por teléfono: mejor estado (por prioridad) + tiempos.
   const porTel = new Map<
@@ -377,16 +399,22 @@ export async function consumoPaquete(clientId: string) {
     getPanel(clientId),
     resumenTraza(clientId),
   ]);
+  const conTope = panel.paqueteConTope;
   const total = panel.paqueteTotal;
+  // Consumido = envíos OK (los ERROR no descuentan): enviado + SÍ + NO.
   const consumidos = r.enviado + r.respondio_si + r.respondio_no;
-  const restantes = Math.max(0, total - consumidos);
-  const pct = total > 0 ? Math.min(100, Math.round((consumidos / total) * 100)) : 0;
+  const restantes = conTope ? Math.max(0, total - consumidos) : null;
+  const pct =
+    conTope && total > 0
+      ? Math.min(100, Math.round((consumidos / total) * 100))
+      : 0;
   return {
-    total,
+    conTope,
+    total: conTope ? total : null,
     consumidos,
     restantes,
     errores: r.error, // no descuentan, se muestran aparte
     pct,
-    activado: total > 0,
+    activado: conTope ? total > 0 : true,
   };
 }

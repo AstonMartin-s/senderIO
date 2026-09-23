@@ -269,8 +269,10 @@ export default function ClientesView() {
           >
             <span className="block text-sm font-semibold">{c.nombre}</span>
             <span className="text-[11px] text-faint">
-              {c.paquete.consumidos}/{c.paquete.total} · cruda{" "}
-              {c.bases.baseCruda} · filtrada {c.bases.listaFiltrada}
+              {c.paquete.conTope
+                ? `${c.paquete.consumidos}/${c.paquete.total}`
+                : `${c.paquete.consumidos} envíos`}{" "}
+              · cruda {c.bases.baseCruda} · filtrada {c.bases.listaFiltrada}
             </span>
           </button>
         ))}
@@ -327,24 +329,34 @@ export default function ClientesView() {
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
-                  <IconCheck className="h-3.5 w-3.5" /> Paquete activado
+                  <IconCheck className="h-3.5 w-3.5" />
+                  {pq.conTope ? "Paquete activado" : "Conteo de envíos"}
                 </span>
                 <span className="text-sm font-medium text-fg">
-                  {pq.total} mensajes
+                  {pq.conTope ? `${pq.total} mensajes` : "sin tope"}
                 </span>
               </div>
               <span className="text-sm text-muted tabular-nums">
                 <span className="font-bold text-fg">{pq.consumidos}</span> enviados
-                · <span className="font-bold text-fg">{pq.restantes}</span> restantes
+                {pq.conTope && (
+                  <>
+                    {" "}·{" "}
+                    <span className="font-bold text-fg">{pq.restantes}</span>{" "}
+                    restantes
+                  </>
+                )}
               </span>
             </div>
-            <ProgressBar
-              value={pq.consumidos}
-              max={pq.total}
-              className="bg-emerald-500"
-            />
+            {pq.conTope && pq.total != null && (
+              <ProgressBar
+                value={pq.consumidos}
+                max={pq.total}
+                className="bg-emerald-500"
+              />
+            )}
             <p className="mt-2 text-[11px] text-faint">
-              Los errores no descuentan ({pq.errores} con error).
+              Cuenta envíos OK (enviado + SÍ + NO). Los errores no descuentan (
+              {pq.errores} con error).
             </p>
           </Card>
 

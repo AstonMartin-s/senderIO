@@ -233,6 +233,9 @@ export const clientePanel = pgTable("cliente_panel", {
   // El consumo se calcula en vivo (enviados − errores sobre la lista filtrada);
   // es informativo y NO frena el goteo (el envío lo maneja el worker por BM).
   paqueteTotal: integer("paquete_total").notNull().default(500),
+  // Si true, el paquete tiene TOPE (total de mensajes contratados). Si false,
+  // se cuenta el consumo pero sin límite (ej. clientes sin paquete cerrado).
+  paqueteConTope: boolean("paquete_con_tope").notNull().default(false),
   // Recipiente "Mensaje/Plantilla": texto que se envía + nombre de plantilla.
   // Informativo/compartido; no toca la rotación real de plantillas.
   mensajeTexto: text("mensaje_texto").notNull().default(""),

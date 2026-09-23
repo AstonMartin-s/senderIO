@@ -529,21 +529,30 @@ export default function ClienteApp() {
                 <IconCheck className="h-3.5 w-3.5" /> Paquete activado
               </span>
               <span className="text-sm font-medium text-fg">
-                {data.paquete.total} mensajes
+                {data.paquete.conTope ? `${data.paquete.total} mensajes` : "sin tope"}
               </span>
             </div>
             <span className="text-sm text-muted tabular-nums">
               <span className="font-bold text-fg">{data.paquete.consumidos}</span>{" "}
-              enviados ·{" "}
-              <span className="font-bold text-fg">{data.paquete.restantes}</span>{" "}
-              restantes
+              enviados
+              {data.paquete.conTope && (
+                <>
+                  {" "}·{" "}
+                  <span className="font-bold text-fg">
+                    {data.paquete.restantes}
+                  </span>{" "}
+                  restantes
+                </>
+              )}
             </span>
           </div>
-          <ProgressBar
-            value={data.paquete.consumidos}
-            max={data.paquete.total}
-            className="bg-emerald-500"
-          />
+          {data.paquete.conTope && data.paquete.total != null && (
+            <ProgressBar
+              value={data.paquete.consumidos}
+              max={data.paquete.total}
+              className="bg-emerald-500"
+            />
+          )}
           <p className="mt-2 text-[11px] text-faint">
             Se descuenta a medida que se detecta el envío en trazabilidad. Los
             errores no descuentan ({data.paquete.errores} con error).
