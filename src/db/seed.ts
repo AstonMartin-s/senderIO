@@ -81,6 +81,7 @@ async function main() {
     { id: "king", nombre: "King", etiquetas: [] as string[] },
     { id: "piliking", nombre: "Piliking", etiquetas: ["piliking"] },
     { id: "clienteS1", nombre: "ClienteS1", etiquetas: ["clientes1"] },
+    { id: "bblack", nombre: "BBlack", etiquetas: ["bblack"] },
   ]) {
     await db.insert(clients).values(c).onConflictDoNothing();
   }
