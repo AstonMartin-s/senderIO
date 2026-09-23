@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { api, adminClienteApi, usePolling, type Bm } from "../api";
+import { useCallback, useEffect, useState } from "react";
+import { api, usePolling, type Bm } from "../api";
 import { useClient } from "../lib/client";
 import { Card, Button, Toggle, ProgressBar, Dot } from "../components/ui";
 import {
@@ -523,12 +523,53 @@ function BmModal({
   const [clientesPaquete, setClientesPaquete] = useState<
     { id: string; nombre: string }[]
   >([]);
-  useEffect(() => {
-    adminClienteApi
-      .list()
-      .then((rows) => setClientesPaquete(rows.map((r) => ({ id: r.id, nombre: r.nombre }))))
-      .catch(() => setClientesPaquete([]));
+  const cargarClientes = useCallback(async () => {
+    try {
+      const rows = await api.clientesEtiqueta();
+      // Excluye el catch-all (CRM): acá solo van los clientes-etiqueta reales.
+      setClientesPaquete(
+        rows
+          .filter((r) => !r.catchAll)
+          .map((r) => ({ id: r.id, nombre: r.nombre }))
+      );
+    } catch {
+      setClientesPaquete([]);
+    }
   }, []);
+  useEffect(() => {
+    cargarClientes();
+  }, [cargarClientes]);
+
+  // Alta inline de cliente-etiqueta desde el mismo modal.
+  const [creando, setCreando] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevaEtiqueta, setNuevaEtiqueta] = useState("");
+  const [creandoBusy, setCreandoBusy] = useState(false);
+  const [creandoErr, setCreandoErr] = useState<string | null>(null);
+
+  async function crearCliente() {
+    setCreandoBusy(true);
+    setCreandoErr(null);
+    try {
+      const row = await api.crearClienteEtiqueta({
+        nombre: nuevoNombre,
+        etiqueta: nuevaEtiqueta,
+      });
+      await cargarClientes();
+      setForm((f) => ({
+        ...f,
+        paqueteClienteId: row.id,
+        plataforma: row.id,
+      }));
+      setCreando(false);
+      setNuevoNombre("");
+      setNuevaEtiqueta("");
+    } catch (e) {
+      setCreandoErr(String((e as Error).message ?? e));
+    } finally {
+      setCreandoBusy(false);
+    }
+  }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -658,9 +699,74 @@ function BmModal({
               </select>
               <span className="mt-1 block text-xs text-faint">
                 Si asignás un cliente, los envíos de este BM cuentan para su
-                paquete (aislado de la operación general). No cambia el envío.
+                paquete y se suman con los leads etiquetados de ese cliente. No
+                cambia el envío.
               </span>
             </label>
+
+            {!creando ? (
+              <button
+                type="button"
+                onClick={() => setCreando(true)}
+                className="mt-2 text-xs font-medium text-brand-500 hover:underline"
+              >
+                + Crear cliente nuevo
+              </button>
+            ) : (
+              <div className="mt-2 rounded-lg border border-line-strong bg-surface-2 p-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-muted">
+                      Nombre
+                    </span>
+                    <input
+                      value={nuevoNombre}
+                      onChange={(e) => setNuevoNombre(e.target.value)}
+                      placeholder="BBlack"
+                      className="w-full rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-medium text-muted">
+                      Etiqueta de Kommo
+                    </span>
+                    <input
+                      value={nuevaEtiqueta}
+                      onChange={(e) => setNuevaEtiqueta(e.target.value)}
+                      placeholder="bblack"
+                      className="w-full rounded-lg border border-line-strong bg-surface px-2.5 py-1.5 text-sm text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+                    />
+                  </label>
+                </div>
+                {creandoErr && (
+                  <p className="mt-2 text-xs text-rose-400">{creandoErr}</p>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={creandoBusy || !nuevoNombre.trim() || !nuevaEtiqueta.trim()}
+                    onClick={crearCliente}
+                  >
+                    {creandoBusy ? "Creando…" : "Crear y asignar"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreando(false);
+                      setCreandoErr(null);
+                    }}
+                    className="text-xs text-muted hover:text-fg"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+                <p className="mt-2 text-[11px] text-faint">
+                  Los leads etiquetados con esa etiqueta (y sus derivados) se
+                  agrupan bajo este cliente en Funnel y en Clientes.
+                </p>
+              </div>
+            )}
           </Section>
 
           <Section title="Trazabilidad (export CSV)">

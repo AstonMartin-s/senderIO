@@ -1,7 +1,35 @@
 import type { FastifyInstance } from "fastify";
-import { getClients, clientKommoStatus } from "../../services/clients.js";
+import {
+  getClients,
+  clientKommoStatus,
+  createClienteEtiqueta,
+} from "../../services/clients.js";
 
 export async function clientRoutes(app: FastifyInstance) {
+  // Crea un cliente-etiqueta desde el panel (Basic Auth por hook global).
+  app.post("/api/clientes-etiqueta", async (req, reply) => {
+    const b = (req.body ?? {}) as {
+      id?: string;
+      nombre?: string;
+      etiqueta?: string;
+      etiquetas?: string[];
+    };
+    const etiquetas =
+      b.etiquetas ?? (b.etiqueta ? [b.etiqueta] : []);
+    try {
+      const row = await createClienteEtiqueta({
+        id: b.id,
+        nombre: b.nombre ?? "",
+        etiquetas,
+      });
+      return reply.code(201).send(row);
+    } catch (err) {
+      return reply
+        .code(400)
+        .send({ ok: false, error: String((err as Error).message ?? err) });
+    }
+  });
+
   app.get("/api/clients", async () => {
     const rows = await getClients();
     return rows

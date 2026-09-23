@@ -222,6 +222,16 @@ export const api = {
     req<KpiLista[]>(`/api/kpis/listas${clientQS(f.client, filtroQS(f))}`),
   clientesEtiqueta: () =>
     req<ClienteEtiqueta[]>("/api/clientes-etiqueta"),
+  crearClienteEtiqueta: (data: {
+    nombre: string;
+    etiqueta?: string;
+    etiquetas?: string[];
+    id?: string;
+  }) =>
+    req<{ id: string; nombre: string; etiquetas: string[] }>(
+      "/api/clientes-etiqueta",
+      { method: "POST", body: JSON.stringify(data) }
+    ),
   clienteEtiquetaKommo: (id: string) =>
     req<ReconcileEtiqueta>(
       `/api/clientes-etiqueta/${encodeURIComponent(id)}/kommo`
