@@ -357,8 +357,34 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
       (filtro === "todos" || f.estado === filtro) &&
       (!q || f.telefono.includes(q) || (f.nombre ?? "").toLowerCase().includes(q.toLowerCase()))
   );
+  const tot = filas.reduce(
+    (a, f) => ({
+      envios: a.envios + (f.envios ?? 0),
+      si: a.si + (f.si ?? 0),
+      no: a.no + (f.no ?? 0),
+      errores: a.errores + (f.errores ?? 0),
+    }),
+    { envios: 0, si: 0, no: 0, errores: 0 }
+  );
 
   return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Envíos" value={tot.envios} icon={<IconSend />} />
+        <StatCard
+          label="SI"
+          value={tot.si}
+          accent="bg-emerald-500/15 text-emerald-500"
+          icon={<IconCheck />}
+        />
+        <StatCard label="NO" value={tot.no} />
+        <StatCard
+          label="Errores"
+          value={tot.errores}
+          accent="bg-rose-500/15 text-rose-500"
+          icon={<IconAlert />}
+        />
+      </div>
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-3">
         <input
@@ -392,10 +418,11 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
             <tr>
               <th className="px-4 py-2.5">Número</th>
               <th className="px-4 py-2.5">Nombre</th>
+              <th className="px-4 py-2.5 text-right">Envíos</th>
+              <th className="px-4 py-2.5 text-right">SI</th>
+              <th className="px-4 py-2.5 text-right">NO</th>
+              <th className="px-4 py-2.5 text-right">Errores</th>
               <th className="px-4 py-2.5">Estado</th>
-              <th className="px-4 py-2.5">Enviado</th>
-              <th className="px-4 py-2.5">Última actividad</th>
-              <th className="px-4 py-2.5">Plantilla</th>
             </tr>
           </thead>
           <tbody>
@@ -405,6 +432,18 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
                   {f.telefono}
                 </td>
                 <td className="px-4 py-2.5 text-muted">{f.nombre ?? "—"}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-fg">
+                  {f.envios ?? 0}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-300">
+                  {f.si ?? 0}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-amber-600 dark:text-amber-300">
+                  {f.no ?? 0}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-300">
+                  {f.errores ?? 0}
+                </td>
                 <td className="px-4 py-2.5">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-semibold ${ESTADO_CLASS[f.estado]}`}
@@ -412,18 +451,11 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
                     {ESTADO_LABEL[f.estado]}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 text-muted tabular-nums">
-                  {fmt(f.enviadoAt)}
-                </td>
-                <td className="px-4 py-2.5 text-muted tabular-nums">
-                  {fmt(f.ultimaActividadAt)}
-                </td>
-                <td className="px-4 py-2.5 text-muted">{f.plantilla ?? "—"}</td>
               </tr>
             ))}
             {!vis.length && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-faint">
+                <td colSpan={7} className="px-4 py-10 text-center text-faint">
                   Sin números para mostrar. Cargá la lista filtrada.
                 </td>
               </tr>
@@ -432,6 +464,7 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
         </table>
       </div>
     </Card>
+    </div>
   );
 }
 

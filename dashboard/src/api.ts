@@ -324,6 +324,10 @@ export interface TrazaNumero {
   telefono: string;
   nombre: string | null;
   estado: "enviado" | "respondio_si" | "respondio_no" | "error" | "pendiente";
+  envios: number;
+  si: number;
+  no: number;
+  errores: number;
   enviadoAt: string | null;
   ultimaActividadAt: string | null;
   plantilla: string | null;

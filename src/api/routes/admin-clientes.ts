@@ -118,10 +118,22 @@ export async function adminClienteRoutes(app: FastifyInstance) {
       return reply.code(404).send({ ok: false, error: "not_found" });
     }
     const filas = await trazaPorNumero(id);
-    const header = "telefono,nombre,estado,enviado_at,ultima_actividad,plantilla";
+    const header =
+      "telefono,nombre,envios,si,no,errores,estado,enviado_at,ultima_actividad,plantilla";
     const body = filas
       .map((f) =>
-        [f.telefono, f.nombre, f.estado, f.enviadoAt, f.ultimaActividadAt, f.plantilla]
+        [
+          f.telefono,
+          f.nombre,
+          f.envios,
+          f.si,
+          f.no,
+          f.errores,
+          f.estado,
+          f.enviadoAt,
+          f.ultimaActividadAt,
+          f.plantilla,
+        ]
           .map(csvEsc)
           .join(",")
       )

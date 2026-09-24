@@ -236,9 +236,80 @@ export interface TrazaNumero {
   telefono: string;
   nombre: string | null;
   estado: "enviado" | "respondio_si" | "respondio_no" | "error" | "pendiente";
+  /** Cantidad de envíos detectados para este número. */
+  envios: number;
+  si: number;
+  no: number;
+  errores: number;
   enviadoAt: string | null;
   ultimaActividadAt: string | null;
   plantilla: string | null;
+}
+
+type AggTel = {
+  mejorAccion: string | null;
+  enviadoAt: Date | null;
+  ultima: Date | null;
+  plantilla: string | null;
+  envios: number;
+  si: number;
+  no: number;
+  errores: number;
+};
+
+function aggVacio(): AggTel {
+  return {
+    mejorAccion: null,
+    enviadoAt: null,
+    ultima: null,
+    plantilla: null,
+    envios: 0,
+    si: 0,
+    no: 0,
+    errores: 0,
+  };
+}
+
+function acumular(
+  cur: AggTel,
+  m: {
+    accion: string;
+    ts: Date | string;
+    templateNombre: string | null;
+    plantilla: string | null;
+  }
+) {
+  const ts = m.ts instanceof Date ? m.ts : new Date(m.ts);
+  if (!cur.ultima || ts > cur.ultima) cur.ultima = ts;
+  if (m.accion === "movido_a_envio") {
+    cur.envios += 1;
+    if (!cur.enviadoAt || ts < cur.enviadoAt) cur.enviadoAt = ts;
+    cur.plantilla = cur.plantilla ?? m.templateNombre ?? m.plantilla ?? null;
+  } else if (m.accion === "resultado_si") cur.si += 1;
+  else if (m.accion === "resultado_no") cur.no += 1;
+  else if (m.accion === "resultado_error") cur.errores += 1;
+  const p = PRIORIDAD[m.accion ?? ""] ?? 0;
+  const pCur = PRIORIDAD[cur.mejorAccion ?? ""] ?? 0;
+  if (p > pCur) cur.mejorAccion = m.accion;
+}
+
+function filaDesdeAgg(
+  telefono: string,
+  nombre: string | null,
+  agg: AggTel | undefined
+): TrazaNumero {
+  return {
+    telefono,
+    nombre,
+    estado: accionToEstado(agg?.mejorAccion ?? null),
+    envios: agg?.envios ?? 0,
+    si: agg?.si ?? 0,
+    no: agg?.no ?? 0,
+    errores: agg?.errores ?? 0,
+    enviadoAt: agg?.enviadoAt ? agg.enviadoAt.toISOString() : null,
+    ultimaActividadAt: agg?.ultima ? agg.ultima.toISOString() : null,
+    plantilla: agg?.plantilla ?? null,
+  };
 }
 
 const PRIORIDAD: Record<string, number> = {
@@ -345,44 +416,15 @@ export async function trazaPorNumero(
   };
   const movs = rawMovs.filter(perteneceAlCliente);
 
-  // Agrega por teléfono: mejor estado (por prioridad) + tiempos.
-  const porTel = new Map<
-    string,
-    {
-      mejorAccion: string | null;
-      enviadoAt: Date | null;
-      ultima: Date | null;
-      plantilla: string | null;
-    }
-  >();
+  const porTel = new Map<string, AggTel>();
   for (const m of movs) {
     if (!m.telefono) continue;
-    const cur =
-      porTel.get(m.telefono) ??
-      { mejorAccion: null, enviadoAt: null, ultima: null, plantilla: null };
-    const ts = m.ts instanceof Date ? m.ts : new Date(m.ts as unknown as string);
-    if (!cur.ultima || ts > cur.ultima) cur.ultima = ts;
-    if (m.accion === "movido_a_envio") {
-      if (!cur.enviadoAt || ts < cur.enviadoAt) cur.enviadoAt = ts;
-      cur.plantilla = cur.plantilla ?? m.templateNombre ?? m.plantilla ?? null;
-    }
-    const p = PRIORIDAD[m.accion ?? ""] ?? 0;
-    const pCur = PRIORIDAD[cur.mejorAccion ?? ""] ?? 0;
-    if (p > pCur) cur.mejorAccion = m.accion;
+    const cur = porTel.get(m.telefono) ?? aggVacio();
+    acumular(cur, m);
     porTel.set(m.telefono, cur);
   }
 
-  return lista.map((l) => {
-    const agg = porTel.get(l.telefono);
-    return {
-      telefono: l.telefono,
-      nombre: l.nombre,
-      estado: accionToEstado(agg?.mejorAccion ?? null),
-      enviadoAt: agg?.enviadoAt ? agg.enviadoAt.toISOString() : null,
-      ultimaActividadAt: agg?.ultima ? agg.ultima.toISOString() : null,
-      plantilla: agg?.plantilla ?? null,
-    };
-  });
+  return lista.map((l) => filaDesdeAgg(l.telefono, l.nombre, porTel.get(l.telefono)));
 }
 
 /** Envíos del log atribuidos por etiqueta, uno por teléfono. Sin cruce de lista. */
@@ -420,15 +462,7 @@ async function trazaDesdeEtiqueta(
     }
   }
 
-  const porTel = new Map<
-    string,
-    {
-      mejorAccion: string | null;
-      enviadoAt: Date | null;
-      ultima: Date | null;
-      plantilla: string | null;
-    }
-  >();
+  const porTel = new Map<string, AggTel>();
   for (const m of rawMovs) {
     if (!m.telefono) continue;
     const heredada =
@@ -437,29 +471,14 @@ async function trazaDesdeEtiqueta(
     const etq = clientes.find((c) => c.id === clienteDeSegmento(seg, clientes));
     // Solo etiqueta propia. El BM asignado no arrastra el historial general.
     if (!etq || etq.catchAll || etq.id !== clientId) continue;
-    const cur =
-      porTel.get(m.telefono) ??
-      { mejorAccion: null, enviadoAt: null, ultima: null, plantilla: null };
-    const ts = m.ts instanceof Date ? m.ts : new Date(m.ts as unknown as string);
-    if (!cur.ultima || ts > cur.ultima) cur.ultima = ts;
-    if (m.accion === "movido_a_envio") {
-      if (!cur.enviadoAt || ts < cur.enviadoAt) cur.enviadoAt = ts;
-      cur.plantilla = cur.plantilla ?? m.templateNombre ?? m.plantilla ?? null;
-    }
-    const p = PRIORIDAD[m.accion ?? ""] ?? 0;
-    const pCur = PRIORIDAD[cur.mejorAccion ?? ""] ?? 0;
-    if (p > pCur) cur.mejorAccion = m.accion;
+    const cur = porTel.get(m.telefono) ?? aggVacio();
+    acumular(cur, m);
     porTel.set(m.telefono, cur);
   }
 
-  return [...porTel.entries()].map(([telefono, agg]) => ({
-    telefono,
-    nombre: null,
-    estado: accionToEstado(agg.mejorAccion),
-    enviadoAt: agg.enviadoAt ? agg.enviadoAt.toISOString() : null,
-    ultimaActividadAt: agg.ultima ? agg.ultima.toISOString() : null,
-    plantilla: agg.plantilla,
-  }));
+  return [...porTel.entries()].map(([telefono, agg]) =>
+    filaDesdeAgg(telefono, null, agg)
+  );
 }
 
 export async function resumenTraza(clientId: string) {

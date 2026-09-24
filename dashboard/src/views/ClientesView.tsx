@@ -476,8 +476,11 @@ export default function ClientesView() {
                   <tr>
                     <th className="px-4 py-2.5">Número</th>
                     <th className="px-4 py-2.5">Nombre</th>
+                    <th className="px-4 py-2.5 text-right">Envíos</th>
+                    <th className="px-4 py-2.5 text-right">SI</th>
+                    <th className="px-4 py-2.5 text-right">NO</th>
+                    <th className="px-4 py-2.5 text-right">Errores</th>
                     <th className="px-4 py-2.5">Estado</th>
-                    <th className="px-4 py-2.5">Plantilla</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -487,13 +490,16 @@ export default function ClientesView() {
                         {f.telefono}
                       </td>
                       <td className="px-4 py-2 text-muted">{f.nombre ?? "—"}</td>
+                      <td className="px-4 py-2 text-right tabular-nums">{f.envios ?? 0}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{f.si ?? 0}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-amber-600 dark:text-amber-300">{f.no ?? 0}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-rose-600 dark:text-rose-300">{f.errores ?? 0}</td>
                       <td className="px-4 py-2 text-muted">{ESTADO[f.estado]}</td>
-                      <td className="px-4 py-2 text-muted">{f.plantilla ?? "—"}</td>
                     </tr>
                   ))}
                   {!traza.length && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-faint">
+                      <td colSpan={7} className="px-4 py-8 text-center text-faint">
                         Sin números en la lista filtrada.
                       </td>
                     </tr>
