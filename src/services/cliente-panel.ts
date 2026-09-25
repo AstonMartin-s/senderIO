@@ -14,6 +14,7 @@ import {
   clienteDeSegmento,
   getClientesEtiqueta,
 } from "./clientes-etiqueta.js";
+import { computeResumenClientesEtiqueta } from "./kpis.js";
 
 /**
  * Servicio del panel-cliente. SOLO recipientes de información compartida:
@@ -496,21 +497,23 @@ export async function resumenTraza(clientId: string) {
 }
 
 /**
- * Consumo del paquete. Regla (definida con Aston, 2026-09-21):
- *  - Universo: solo la lista filtrada del cliente (cruce por teléfono E.164).
- *  - Consumido = mensajes que se enviaron y NO terminaron en error
- *    (enviado + respondió SÍ + respondió NO). Los ERROR no descuentan.
- *  - Informativo: NO frena el goteo (el envío lo maneja el worker por BM).
+ * Consumo del paquete. Lo que descuenta es «enviados sin error»
+ * (enviados − errores), el mismo criterio que el funnel. Los ERROR no
+ * descuentan. Es el total histórico de la etiqueta, no el filtro de fecha.
+ * Informativo: NO frena el goteo.
  */
 export async function consumoPaquete(clientId: string) {
-  const [panel, r] = await Promise.all([
+  const [panel, todos] = await Promise.all([
     getPanel(clientId),
-    resumenTraza(clientId),
+    computeResumenClientesEtiqueta(),
   ]);
+  const row = todos.find((c) => c.id === clientId);
   const conTope = panel.paqueteConTope;
   const total = panel.paqueteTotal;
-  // Consumido = envíos OK (los ERROR no descuentan): enviado + SÍ + NO.
-  const consumidos = r.enviado + r.respondio_si + r.respondio_no;
+  const enviados = row?.enviados ?? 0;
+  const errores = row?.errores ?? 0;
+  const enviadosSinError = Math.max(0, enviados - errores);
+  const consumidos = enviadosSinError;
   const restantes = conTope ? Math.max(0, total - consumidos) : null;
   const pct =
     conTope && total > 0
@@ -519,9 +522,11 @@ export async function consumoPaquete(clientId: string) {
   return {
     conTope,
     total: conTope ? total : null,
+    enviados,
+    enviadosSinError,
     consumidos,
     restantes,
-    errores: r.error, // no descuentan, se muestran aparte
+    errores,
     pct,
     activado: conTope ? total > 0 : true,
   };

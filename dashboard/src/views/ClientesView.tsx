@@ -191,7 +191,6 @@ export default function ClientesView() {
   const periodoLabel = rango
     ? `${desde || "…"} → ${hasta || "…"}`
     : "hoy";
-  const metSel = resumen.find((r) => r.id === sel);
 
   return (
     <div className="space-y-5">
@@ -262,6 +261,12 @@ export default function ClientesView() {
               <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
                 <th className="px-4 py-2.5 font-medium">Cliente</th>
                 <th className="px-3 py-2.5 text-right font-medium">Enviados</th>
+                <th className="px-3 py-2.5 text-right font-medium leading-tight">
+                  Enviados
+                  <span className="block font-medium normal-case tracking-normal text-faint">
+                    sin error
+                  </span>
+                </th>
                 <th className="px-3 py-2.5 text-right font-medium">SI</th>
                 <th className="px-3 py-2.5 text-right font-medium">NO</th>
                 <th className="px-3 py-2.5 text-right font-medium">ERROR</th>
@@ -281,6 +286,9 @@ export default function ClientesView() {
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{c.enviados}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums">
+                    {Math.max(0, c.enviados - c.errores)}
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{c.si}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-amber-600 dark:text-amber-300">{c.no}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-300">{c.errores}</td>
@@ -290,7 +298,7 @@ export default function ClientesView() {
               ))}
               {!resumen.length && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-faint">
+                  <td colSpan={8} className="px-4 py-8 text-center text-faint">
                     Sin actividad en el período.
                   </td>
                 </tr>
@@ -314,8 +322,8 @@ export default function ClientesView() {
             <span className="block text-sm font-semibold">{c.nombre}</span>
             <span className="text-[11px] text-faint">
               {c.paquete.conTope
-                ? `${c.paquete.consumidos}/${c.paquete.total}`
-                : `${resumen.find((r) => r.id === c.id)?.enviados ?? 0} envíos`}{" "}
+                ? `${c.paquete.enviadosSinError}/${c.paquete.total} sin error`
+                : `${Math.max(0, (resumen.find((r) => r.id === c.id)?.enviados ?? 0) - (resumen.find((r) => r.id === c.id)?.errores ?? 0))} sin error`}{" "}
               · cruda {c.bases.baseCruda} · filtrada {c.bases.listaFiltrada}
             </span>
           </button>
@@ -351,8 +359,12 @@ export default function ClientesView() {
             <p className="mt-3 text-sm text-rose-400">{kommoErr}</p>
           )}
           {kommo && (
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
               <StatCard label="Enviados" value={kommo.enviados} />
+              <StatCard
+                label="Enviados sin error"
+                value={Math.max(0, kommo.enviados - kommo.error)}
+              />
               <StatCard label="Respondieron SÍ" value={kommo.si} />
               <StatCard label="Respondieron NO" value={kommo.no} />
               <StatCard label="Error" value={kommo.error} />
@@ -381,32 +393,31 @@ export default function ClientesView() {
                 </span>
               </div>
               <span className="text-sm text-muted tabular-nums">
-                <span className="font-bold text-fg">
-                  {pq.conTope ? pq.consumidos : (metSel?.enviados ?? 0)}
-                </span>{" "}
-                enviados
-                {pq.conTope ? (
+                <span className="font-bold text-fg">{pq.enviados}</span> enviados
+                {" · "}
+                <span className="font-bold text-fg">{pq.enviadosSinError}</span>{" "}
+                sin error
+                {pq.conTope && (
                   <>
                     {" "}·{" "}
                     <span className="font-bold text-fg">{pq.restantes}</span>{" "}
                     restantes
                   </>
-                ) : (
-                  <span className="text-faint"> · {periodoLabel}</span>
                 )}
               </span>
             </div>
             {pq.conTope && pq.total != null && (
               <ProgressBar
-                value={pq.consumidos}
+                value={pq.enviadosSinError}
                 max={pq.total}
                 className="bg-emerald-500"
               />
             )}
             <p className="mt-2 text-[11px] text-faint">
-              {pq.conTope
-                ? `Cuenta envíos OK del paquete (enviado + SÍ + NO), sin filtrar por fecha. Los errores no descuentan (${pq.errores} con error).`
-                : `Envíos del período (${periodoLabel}). El stock del tablero se ve en «Estado en Kommo».`}
+              Descuenta los enviados sin error (enviados − errores
+              {pq.errores ? `, ${pq.errores} con error` : ""}). El cupo no
+              filtra por fecha.
+              {!pq.conTope && ` Período de la tabla: ${periodoLabel}.`}
             </p>
           </Card>
 

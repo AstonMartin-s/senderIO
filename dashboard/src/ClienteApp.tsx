@@ -566,8 +566,12 @@ export default function ClienteApp() {
               </span>
             </div>
             <span className="text-sm text-muted tabular-nums">
-              <span className="font-bold text-fg">{data.paquete.consumidos}</span>{" "}
-              enviados
+              <span className="font-bold text-fg">{data.paquete.enviados}</span>{" "}
+              enviados ·{" "}
+              <span className="font-bold text-fg">
+                {data.paquete.enviadosSinError}
+              </span>{" "}
+              sin error
               {data.paquete.conTope && (
                 <>
                   {" "}·{" "}
@@ -581,14 +585,15 @@ export default function ClienteApp() {
           </div>
           {data.paquete.conTope && data.paquete.total != null && (
             <ProgressBar
-              value={data.paquete.consumidos}
+              value={data.paquete.enviadosSinError}
               max={data.paquete.total}
               className="bg-emerald-500"
             />
           )}
           <p className="mt-2 text-[11px] text-faint">
-            Se descuenta a medida que se detecta el envío en trazabilidad. Los
-            errores no descuentan ({data.paquete.errores} con error).
+            Descuenta los enviados sin error (enviados − errores
+            {data.paquete.errores ? `, ${data.paquete.errores} con error` : ""}
+            ).
           </p>
         </Card>
       )}

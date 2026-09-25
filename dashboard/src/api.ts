@@ -347,6 +347,8 @@ export interface ClientePanelResp {
   paquete: {
     conTope: boolean;
     total: number | null;
+    enviados: number;
+    enviadosSinError: number;
     consumidos: number;
     restantes: number | null;
     errores: number;
