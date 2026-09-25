@@ -325,6 +325,7 @@ export interface TrazaNumero {
   nombre: string | null;
   estado: "enviado" | "respondio_si" | "respondio_no" | "error" | "pendiente";
   envios: number;
+  enviadosSinError: number;
   si: number;
   no: number;
   errores: number;

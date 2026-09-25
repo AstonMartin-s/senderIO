@@ -239,6 +239,8 @@ export interface TrazaNumero {
   estado: "enviado" | "respondio_si" | "respondio_no" | "error" | "pendiente";
   /** Cantidad de envíos detectados para este número. */
   envios: number;
+  /** envios − errores. Es lo que descuenta el paquete. */
+  enviadosSinError: number;
   si: number;
   no: number;
   errores: number;
@@ -304,6 +306,7 @@ function filaDesdeAgg(
     nombre,
     estado: accionToEstado(agg?.mejorAccion ?? null),
     envios: agg?.envios ?? 0,
+    enviadosSinError: Math.max(0, (agg?.envios ?? 0) - (agg?.errores ?? 0)),
     si: agg?.si ?? 0,
     no: agg?.no ?? 0,
     errores: agg?.errores ?? 0,
@@ -319,6 +322,65 @@ const PRIORIDAD: Record<string, number> = {
   resultado_error: 2,
   movido_a_envio: 1,
 };
+
+function ordenTraza(filas: TrazaNumero[]): TrazaNumero[] {
+  return filas.sort(
+    (a, b) =>
+      b.enviadosSinError - a.enviadosSinError ||
+      b.envios - a.envios ||
+      b.errores - a.errores ||
+      a.telefono.localeCompare(b.telefono)
+  );
+}
+
+/**
+ * SI/NO/ERROR se guardan sin teléfono. Se los pegamos al número del envío
+ * del mismo lead, para que la traza por número no quede en cero.
+ */
+async function sumarResultadosDelLead(
+  porTel: Map<string, AggTel>,
+  telPorLead: Map<string, string>,
+  yaContados: Set<number>
+) {
+  const leadIds = [
+    ...new Set(
+      [...telPorLead.keys()]
+        .map((k) => Number(k.slice(k.indexOf(":") + 1)))
+        .filter((n) => Number.isFinite(n))
+    ),
+  ];
+  if (!leadIds.length) return;
+  const rows = await db
+    .select({
+      id: logMovimientos.id,
+      bmId: logMovimientos.bmId,
+      leadId: logMovimientos.leadId,
+      accion: logMovimientos.accion,
+      templateNombre: logMovimientos.templateNombre,
+      plantilla: logMovimientos.plantilla,
+      ts: logMovimientos.ts,
+    })
+    .from(logMovimientos)
+    .where(
+      and(
+        inArray(logMovimientos.leadId, leadIds),
+        inArray(logMovimientos.accion, [
+          "resultado_si",
+          "resultado_no",
+          "resultado_error",
+        ])
+      )
+    );
+  for (const r of rows) {
+    if (yaContados.has(r.id) || r.leadId == null) continue;
+    const tel = telPorLead.get(`${r.bmId}:${r.leadId}`);
+    if (!tel) continue;
+    const cur = porTel.get(tel) ?? aggVacio();
+    acumular(cur, r);
+    porTel.set(tel, cur);
+    yaContados.add(r.id);
+  }
+}
 
 function accionToEstado(accion: string | null): TrazaNumero["estado"] {
   switch (accion) {
@@ -377,6 +439,7 @@ export async function trazaPorNumero(
   // la lista del cliente.
   const rawMovs = await db
     .select({
+      id: logMovimientos.id,
       telefono: logMovimientos.telefono,
       bmId: logMovimientos.bmId,
       leadId: logMovimientos.leadId,
@@ -418,14 +481,23 @@ export async function trazaPorNumero(
   const movs = rawMovs.filter(perteneceAlCliente);
 
   const porTel = new Map<string, AggTel>();
+  const yaContados = new Set<number>();
+  const telPorLead = new Map<string, string>();
   for (const m of movs) {
     if (!m.telefono) continue;
     const cur = porTel.get(m.telefono) ?? aggVacio();
     acumular(cur, m);
     porTel.set(m.telefono, cur);
+    yaContados.add(m.id);
+    if (m.accion === "movido_a_envio" && m.leadId != null) {
+      telPorLead.set(`${m.bmId}:${m.leadId}`, m.telefono);
+    }
   }
+  await sumarResultadosDelLead(porTel, telPorLead, yaContados);
 
-  return lista.map((l) => filaDesdeAgg(l.telefono, l.nombre, porTel.get(l.telefono)));
+  return ordenTraza(
+    lista.map((l) => filaDesdeAgg(l.telefono, l.nombre, porTel.get(l.telefono)))
+  );
 }
 
 /** Envíos del log atribuidos por etiqueta, uno por teléfono. Sin cruce de lista. */
@@ -435,6 +507,7 @@ async function trazaDesdeEtiqueta(
 ): Promise<TrazaNumero[]> {
   const rawMovs = await db
     .select({
+      id: logMovimientos.id,
       telefono: logMovimientos.telefono,
       bmId: logMovimientos.bmId,
       leadId: logMovimientos.leadId,
@@ -464,6 +537,8 @@ async function trazaDesdeEtiqueta(
   }
 
   const porTel = new Map<string, AggTel>();
+  const yaContados = new Set<number>();
+  const telPorLead = new Map<string, string>();
   for (const m of rawMovs) {
     if (!m.telefono) continue;
     const heredada =
@@ -475,10 +550,17 @@ async function trazaDesdeEtiqueta(
     const cur = porTel.get(m.telefono) ?? aggVacio();
     acumular(cur, m);
     porTel.set(m.telefono, cur);
+    yaContados.add(m.id);
+    if (m.accion === "movido_a_envio" && m.leadId != null) {
+      telPorLead.set(`${m.bmId}:${m.leadId}`, m.telefono);
+    }
   }
+  await sumarResultadosDelLead(porTel, telPorLead, yaContados);
 
-  return [...porTel.entries()].map(([telefono, agg]) =>
-    filaDesdeAgg(telefono, null, agg)
+  return ordenTraza(
+    [...porTel.entries()].map(([telefono, agg]) =>
+      filaDesdeAgg(telefono, null, agg)
+    )
   );
 }
 

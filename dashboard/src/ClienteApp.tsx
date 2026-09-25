@@ -360,17 +360,19 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
   const tot = filas.reduce(
     (a, f) => ({
       envios: a.envios + (f.envios ?? 0),
+      sinError: a.sinError + (f.enviadosSinError ?? Math.max(0, (f.envios ?? 0) - (f.errores ?? 0))),
       si: a.si + (f.si ?? 0),
       no: a.no + (f.no ?? 0),
       errores: a.errores + (f.errores ?? 0),
     }),
-    { envios: 0, si: 0, no: 0, errores: 0 }
+    { envios: 0, sinError: 0, si: 0, no: 0, errores: 0 }
   );
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Envíos" value={tot.envios} icon={<IconSend />} />
+        <StatCard label="Sin error" value={tot.sinError} />
         <StatCard
           label="SI"
           value={tot.si}
@@ -419,6 +421,7 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
               <th className="px-4 py-2.5">Número</th>
               <th className="px-4 py-2.5">Nombre</th>
               <th className="px-4 py-2.5 text-right">Envíos</th>
+              <th className="px-4 py-2.5 text-right">Sin error</th>
               <th className="px-4 py-2.5 text-right">SI</th>
               <th className="px-4 py-2.5 text-right">NO</th>
               <th className="px-4 py-2.5 text-right">Errores</th>
@@ -434,6 +437,9 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
                 <td className="px-4 py-2.5 text-muted">{f.nombre ?? "—"}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-fg">
                   {f.envios ?? 0}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-fg">
+                  {f.enviadosSinError ?? Math.max(0, (f.envios ?? 0) - (f.errores ?? 0))}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-300">
                   {f.si ?? 0}
@@ -455,7 +461,7 @@ function TrazaTabla({ filas }: { filas: TrazaNumero[] }) {
             ))}
             {!vis.length && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-faint">
+                <td colSpan={8} className="px-4 py-10 text-center text-faint">
                   Sin números para mostrar. Cargá la lista filtrada.
                 </td>
               </tr>

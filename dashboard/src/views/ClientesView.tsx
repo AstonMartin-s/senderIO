@@ -12,6 +12,10 @@ import { parseCsv } from "../lib/csv";
 import { Button, Card, ProgressBar, StatCard } from "../components/ui";
 import { IconCheck, IconDownload, IconRefresh } from "../components/icons";
 
+function sinErrorDe(f: TrazaNumero): number {
+  return f.enviadosSinError ?? Math.max(0, (f.envios ?? 0) - (f.errores ?? 0));
+}
+
 const ESTADO: Record<TrazaNumero["estado"], string> = {
   enviado: "Enviado",
   respondio_si: "Respondió SÍ",
@@ -472,8 +476,18 @@ export default function ClientesView() {
           </div>
 
           <Card className="overflow-hidden">
-            <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <h3 className="text-sm font-bold text-fg">Trazabilidad por número</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
+              <div>
+                <h3 className="text-sm font-bold text-fg">Trazabilidad por número</h3>
+                <p className="mt-0.5 text-[11px] text-faint">
+                  {traza.reduce((n, f) => n + (f.envios ?? 0), 0)} enviados ·{" "}
+                  {traza.reduce((n, f) => n + sinErrorDe(f), 0)} sin error ·{" "}
+                  {traza.reduce((n, f) => n + (f.si ?? 0), 0)} SI ·{" "}
+                  {traza.reduce((n, f) => n + (f.no ?? 0), 0)} NO ·{" "}
+                  {traza.reduce((n, f) => n + (f.errores ?? 0), 0)} errores.
+                  Los sin error son los que descuentan el paquete.
+                </p>
+              </div>
               <a
                 href={adminClienteApi.csvTraza(sel)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-2.5 py-1.5 text-xs font-medium text-fg ring-1 ring-line-strong hover:bg-surface-2"
@@ -488,6 +502,9 @@ export default function ClientesView() {
                     <th className="px-4 py-2.5">Número</th>
                     <th className="px-4 py-2.5">Nombre</th>
                     <th className="px-4 py-2.5 text-right">Envíos</th>
+                    <th className="px-4 py-2.5 text-right leading-tight">
+                      Sin error
+                    </th>
                     <th className="px-4 py-2.5 text-right">SI</th>
                     <th className="px-4 py-2.5 text-right">NO</th>
                     <th className="px-4 py-2.5 text-right">Errores</th>
@@ -495,13 +512,14 @@ export default function ClientesView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {traza.slice(0, 200).map((f) => (
+                  {traza.map((f) => (
                     <tr key={f.telefono} className="border-t border-line/60">
                       <td className="px-4 py-2 font-mono text-[13px] text-fg">
                         {f.telefono}
                       </td>
                       <td className="px-4 py-2 text-muted">{f.nombre ?? "—"}</td>
                       <td className="px-4 py-2 text-right tabular-nums">{f.envios ?? 0}</td>
+                      <td className="px-4 py-2 text-right tabular-nums font-semibold">{sinErrorDe(f)}</td>
                       <td className="px-4 py-2 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{f.si ?? 0}</td>
                       <td className="px-4 py-2 text-right tabular-nums text-amber-600 dark:text-amber-300">{f.no ?? 0}</td>
                       <td className="px-4 py-2 text-right tabular-nums text-rose-600 dark:text-rose-300">{f.errores ?? 0}</td>
@@ -510,7 +528,7 @@ export default function ClientesView() {
                   ))}
                   {!traza.length && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-faint">
+                      <td colSpan={8} className="px-4 py-8 text-center text-faint">
                         Sin números en la lista filtrada.
                       </td>
                     </tr>

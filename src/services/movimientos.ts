@@ -61,12 +61,16 @@ export async function ultimoEnvioDeLead(
   const ts = row.ts instanceof Date ? row.ts : new Date(row.ts as unknown as string);
   return { bmId: row.bmId, ts };
 }
-export async function segmentoDeLead(
+/** Teléfono y etiqueta del envío de este lead. SI/NO/ERROR no traen teléfono propio. */
+export async function datosDeEnvio(
   bmId: string,
   leadId: number
-): Promise<string | null> {
+): Promise<{ segmento: string | null; telefono: string | null } | null> {
   const rows = await db
-    .select({ segmento: logMovimientos.segmento })
+    .select({
+      segmento: logMovimientos.segmento,
+      telefono: logMovimientos.telefono,
+    })
     .from(logMovimientos)
     .where(
       and(
@@ -77,5 +81,13 @@ export async function segmentoDeLead(
     )
     .orderBy(desc(logMovimientos.ts))
     .limit(1);
-  return rows[0]?.segmento ?? null;
+  return rows[0] ?? null;
+}
+
+export async function segmentoDeLead(
+  bmId: string,
+  leadId: number
+): Promise<string | null> {
+  const envio = await datosDeEnvio(bmId, leadId);
+  return envio?.segmento ?? null;
 }

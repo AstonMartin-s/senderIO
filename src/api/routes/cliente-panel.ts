@@ -124,13 +124,14 @@ export async function clientePanelRoutes(app: FastifyInstance) {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const header =
-      "telefono,nombre,envios,si,no,errores,estado,enviado_at,ultima_actividad,plantilla";
+      "telefono,nombre,envios,enviados_sin_error,si,no,errores,estado,enviado_at,ultima_actividad,plantilla";
     const body = filas
       .map((f) =>
         [
           f.telefono,
           f.nombre ?? "",
           f.envios,
+          f.enviadosSinError,
           f.si,
           f.no,
           f.errores,

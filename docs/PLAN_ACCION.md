@@ -2,6 +2,17 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-09-25 — Traza por número: enviados y enviados sin error
+
+- La tabla de Clientes cortaba en 200 filas en el orden de la lista. Los 41
+  envíos de ClienteS1 estaban en las posiciones 229–316, así que se veía todo
+  Pendiente.
+- SI/NO/ERROR del webhook no traen teléfono. La traza los hereda del envío del
+  mismo lead. A partir de ahora el webhook también copia el teléfono del envío.
+- Columna «Sin error» = envíos − errores. Esos números descuentan el paquete.
+  Quedan arriba de la tabla. ClienteS1: 41 enviados, 36 sin error, 2 SI, 5 NO,
+  5 errores.
+
 ## 2026-09-23 — Reconciliar métricas de cliente contra Kommo (en vivo)
 
 - Los movimientos MANUALES en Kommo no pasan por worker/webhook, así que no
