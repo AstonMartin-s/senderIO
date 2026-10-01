@@ -418,8 +418,9 @@ export default function ClientesView() {
               />
             )}
             <p className="mt-2 text-[11px] text-faint">
-              Descuenta los enviados sin error (enviados − errores
-              {pq.errores ? `, ${pq.errores} con error` : ""}). El cupo no
+              No se cobran los enviados con error
+              {pq.errores ? ` (${pq.errores})` : ""}. El cupo baja solo por los
+              sin error, incluidos los que respondieron SÍ o NO. El cupo no
               filtra por fecha.
               {!pq.conTope && ` Período de la tabla: ${periodoLabel}.`}
             </p>

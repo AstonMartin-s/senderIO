@@ -597,9 +597,9 @@ export default function ClienteApp() {
             />
           )}
           <p className="mt-2 text-[11px] text-faint">
-            Descuenta los enviados sin error (enviados − errores
-            {data.paquete.errores ? `, ${data.paquete.errores} con error` : ""}
-            ).
+            No se cobran los enviados con error
+            {data.paquete.errores ? ` (${data.paquete.errores})` : ""}. El cupo
+            baja solo por los sin error, incluidos los que respondieron SÍ o NO.
           </p>
         </Card>
       )}

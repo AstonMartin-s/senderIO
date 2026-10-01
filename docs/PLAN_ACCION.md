@@ -10,6 +10,7 @@ Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
   (133 todavía en envío + 20 SI + 12 NO).
 - La tarjeta «Estado en Kommo» mostraba 145/2/5/5 porque dejaba de leer
   a las 500 fichas. BM1 SI/NO/ERROR superan eso. Ahora lee la etapa entera.
+- El texto del paquete dice explícito que los enviados con error no se cobran.
 
 ## 2026-09-26 — Traza ClienteS1 alineada al tablero
 
