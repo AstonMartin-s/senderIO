@@ -2,6 +2,34 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-10-01 — ClienteS1: el 145 de Kommo estaba cortado; el cobro es 165
+
+- Cobro = enviados sin error = los que salieron y no están en ERROR.
+  SI y NO entran en ese número. No se restan.
+- Log y tablero completo coinciden: 203 salieron, 38 error, 165 a cobrar
+  (133 todavía en envío + 20 SI + 12 NO).
+- La tarjeta «Estado en Kommo» mostraba 145/2/5/5 porque dejaba de leer
+  a las 500 fichas. BM1 SI/NO/ERROR superan eso. Ahora lee la etapa entera.
+
+## 2026-09-26 — Traza ClienteS1 alineada al tablero
+
+- Recorrido completo de las etapas de BM1/BM3/BM5/BM6 (el tope de 500
+  ocultaba SI/NO de BM1). Etiqueta ClienteS1: 267 en base, 40 en envío,
+  5 SI, 8 NO, 8 ERROR.
+- Se anotaron 7 envíos manuales de BM1 que no estaban en el log, con
+  teléfono. Se sacaron 5 envíos+error de BM6 que el usuario devolvió a
+  la base. Dos resultados (1 SI, 1 NO) copiaron etiqueta y teléfono del
+  envío. El log queda 61 / 5 / 8 / 8. Sin error = 53.
+
+## 2026-09-25 — BM6 borrado: el historial no se fue
+
+- `DELETE /api/bms/:id` solo borra la fila de `bm_config`. `log_movimientos`
+  no tiene FK, así que los 97 movimientos de BM6 siguieron en la base.
+- Se reinsertó BM6 (Ambienger, pipeline 14508603) apagado y en pausa dura,
+  que es como estaba: 5 errores seguidos, 5/45 hoy. El ritmo 520–860 s y la
+  ventana 14:00–23:59 salen de los huecos del log, no del formulario original.
+  WABA id no está en el log.
+
 ## 2026-09-25 — Traza por número: enviados y enviados sin error
 
 - La tabla de Clientes cortaba en 200 filas en el orden de la lista. Los 41

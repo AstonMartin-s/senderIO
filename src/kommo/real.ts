@@ -140,7 +140,7 @@ export class RealKommoClient implements KommoClient {
   async listStageLeadsWithTag(
     pipelineId: number,
     statusId: number,
-    max = 500
+    max = 8000
   ): Promise<Array<{ id: number; tag: string | null }>> {
     const out: Array<{ id: number; tag: string | null }> = [];
     const perPage = 250;

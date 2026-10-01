@@ -29,7 +29,9 @@ export interface ReconcileEtiqueta {
 
 export async function reconcileClienteEtiqueta(
   clienteId: string,
-  { maxPorEtapa = 500 }: { maxPorEtapa?: number } = {}
+  // 500 dejaba afuera SI/NO/ERROR de BM1: esas columnas superan las 500
+  // fichas y los ClienteS1 quedan más atrás. Hay que leer la etapa entera.
+  { maxPorEtapa = 8000 }: { maxPorEtapa?: number } = {}
 ): Promise<ReconcileEtiqueta> {
   const clientes = await getClientesEtiqueta();
   const cli = clientes.find((c) => c.id === clienteId);
