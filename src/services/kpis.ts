@@ -40,6 +40,17 @@ export interface KpiLista {
 
 export const LISTA_SIN_ETIQUETA = "Sin etiqueta";
 
+/**
+ * % error = errores / enviados con éxito.
+ * Éxito = enviados − errores (incluye los que respondieron SÍ o NO).
+ * Los que siguen sin resultado también son éxito: no se arma el % solo con SÍ+NO+ERROR.
+ */
+export function pctErrorSobreExito(enviados: number, errores: number): number {
+  const exito = Math.max(0, enviados - errores);
+  if (!exito) return errores > 0 ? 100 : 0;
+  return Math.round((errores / exito) * 10000) / 100;
+}
+
 const ACCIONES_KPI = [
   "movido_a_envio",
   "resultado_si",
@@ -169,18 +180,14 @@ export async function computeSnapshot(
     pctSi: 0,
   };
   for (const f of porBm.values()) {
-    const base = f.si + f.no + f.errores;
-    f.pctError = base ? Math.round((f.errores / base) * 10000) / 100 : 0;
+    f.pctError = pctErrorSobreExito(f.enviados, f.errores);
     f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
     total.enviados += f.enviados;
     total.si += f.si;
     total.no += f.no;
     total.errores += f.errores;
   }
-  const baseTotal = total.si + total.no + total.errores;
-  total.pctError = baseTotal
-    ? Math.round((total.errores / baseTotal) * 10000) / 100
-    : 0;
+  total.pctError = pctErrorSobreExito(total.enviados, total.errores);
   total.pctSi = total.enviados
     ? Math.round((total.si / total.enviados) * 10000) / 100
     : 0;
@@ -226,18 +233,14 @@ function agregar(rows: { bmId: string; accion: string }[]): KpiFila[] {
     pctSi: 0,
   };
   for (const f of porBm.values()) {
-    const base = f.si + f.no + f.errores;
-    f.pctError = base ? Math.round((f.errores / base) * 10000) / 100 : 0;
+    f.pctError = pctErrorSobreExito(f.enviados, f.errores);
     f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
     total.enviados += f.enviados;
     total.si += f.si;
     total.no += f.no;
     total.errores += f.errores;
   }
-  const baseTotal = total.si + total.no + total.errores;
-  total.pctError = baseTotal
-    ? Math.round((total.errores / baseTotal) * 10000) / 100
-    : 0;
+  total.pctError = pctErrorSobreExito(total.enviados, total.errores);
   total.pctSi = total.enviados
     ? Math.round((total.si / total.enviados) * 10000) / 100
     : 0;
@@ -271,8 +274,7 @@ export async function computeRange(
 }
 
 function cerrarFilaLista(f: KpiLista) {
-  const base = f.si + f.no + f.errores;
-  f.pctError = base ? Math.round((f.errores / base) * 10000) / 100 : 0;
+  f.pctError = pctErrorSobreExito(f.enviados, f.errores);
   f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
 }
 
@@ -473,8 +475,7 @@ export async function computeResumenClientesEtiqueta(
 
   const out = [...acc.values()];
   for (const f of out) {
-    const base = f.si + f.no + f.errores;
-    f.pctError = base ? Math.round((f.errores / base) * 10000) / 100 : 0;
+    f.pctError = pctErrorSobreExito(f.enviados, f.errores);
     f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
   }
   return out;

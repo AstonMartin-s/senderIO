@@ -2,6 +2,14 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-10-13 — % error sobre enviados con éxito
+
+- Antes: ERROR / (SÍ + NO + ERROR). En ClienteS1 eso era 69/135 ≈ 51%.
+- Ahora: ERROR / enviados con éxito. Éxito = enviados − errores (incluye SÍ,
+  NO y los que siguen en envío). ClienteS1: 69/426 = 16,2%.
+- Misma fórmula en métricas por etiqueta, funnel y la lectura en vivo de Kommo.
+  El % móvil del cortafuegos del BM no cambia.
+
 ## 2026-10-01 — ClienteS1: el 145 de Kommo estaba cortado; el cobro es 165
 
 - Cobro = enviados sin error = los que salieron y no están en ERROR.

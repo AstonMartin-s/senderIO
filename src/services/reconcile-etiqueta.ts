@@ -5,6 +5,7 @@ import {
   getClientesEtiqueta,
 } from "./clientes-etiqueta.js";
 import { isClientId } from "../config.js";
+import { pctErrorSobreExito } from "./kpis.js";
 
 /**
  * Reconciliación EN VIVO contra el tablero de Kommo. Solo lectura: NO toca
@@ -78,7 +79,6 @@ export async function reconcileClienteEtiqueta(
     if (tocoBm) consultados++;
   }
 
-  const base = si + no + error;
   return {
     id: cli.id,
     nombre: cli.nombre,
@@ -86,7 +86,7 @@ export async function reconcileClienteEtiqueta(
     si,
     no,
     error,
-    pctError: base ? Math.round((error / base) * 10000) / 100 : 0,
+    pctError: pctErrorSobreExito(enviados, error),
     pctSi: enviados ? Math.round((si / enviados) * 10000) / 100 : 0,
     pipelines: consultados,
   };
