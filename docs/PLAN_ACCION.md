@@ -2,6 +2,17 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-10-16 — Panel embebido para Tracker
+
+- `/embed/{overview,bms,plantillas,funnel,log,clientes,verificador}` abre la
+  vista sin la sidebar de Sender. El selector de Kommo queda en la página.
+- `frame-ancestors` solo para `https://panel.trackerapp.site` y
+  `https://tobyap-production.up.railway.app`.
+- Sin Basic en la URL. La página se entrega si el Referer es Tracker (o un
+  refresh del propio embed) y deja cookie para el API. El panel directo sigue
+  con Basic.
+- Ref: MSG-TOB-20261016-SND-1. TOB todavía no desplegó la sidebar.
+
 ## 2026-10-13 — % error sobre enviados con éxito
 
 - Antes: ERROR / (SÍ + NO + ERROR). En ClienteS1 eso era 69/135 ≈ 51%.

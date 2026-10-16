@@ -16,6 +16,14 @@ import { clientRoutes } from "./routes/clients.js";
 import { clientePanelRoutes } from "./routes/cliente-panel.js";
 import { adminClienteRoutes } from "./routes/admin-clientes.js";
 import { trazaRoutes } from "./routes/traza.js";
+import {
+  embedRefererOk,
+  embedView,
+  refererIsEmbedPage,
+  requestHasEmbedCookie,
+  setEmbedCookie,
+  setEmbedFrameHeaders,
+} from "./embed.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dashboardDist = join(__dirname, "../../dashboard/dist");
@@ -61,6 +69,30 @@ async function build() {
   // Guard global de Basic Auth para el panel de operación.
   app.addHook("onRequest", async (req, reply) => {
     if (basicAuthExento(req.url)) return;
+
+    // Panel embebido en Tracker. Sin Basic en el navegador: la página solo
+    // se entrega si el Referer es el panel, y deja una cookie para el /api.
+    const referer = Array.isArray(req.headers.referer)
+      ? req.headers.referer[0]
+      : req.headers.referer;
+    const host = Array.isArray(req.headers.host)
+      ? req.headers.host[0]
+      : req.headers.host;
+    const cookieOk = requestHasEmbedCookie(req);
+    const desdeEmbed = refererIsEmbedPage(referer, host);
+    if (embedView(req.url)) {
+      if (!embedRefererOk(referer) && !cookieOk && !desdeEmbed) {
+        return reply
+          .code(403)
+          .type("text/html")
+          .send("<p>Este panel solo se abre desde Tracker.</p>");
+      }
+      setEmbedCookie(reply);
+      setEmbedFrameHeaders(reply);
+      return;
+    }
+    if (cookieOk || desdeEmbed) return;
+
     const header = req.headers.authorization ?? "";
     const m = /^Basic\s+(.+)$/i.exec(header.trim());
     if (m) {

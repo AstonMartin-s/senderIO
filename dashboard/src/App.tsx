@@ -32,6 +32,22 @@ type View =
   | "clientes"
   | "verificador";
 
+const EMBED_VIEWS: View[] = [
+  "overview",
+  "bms",
+  "plantillas",
+  "funnel",
+  "log",
+  "clientes",
+  "verificador",
+];
+
+function viewDesdeEmbed(): View | null {
+  const m = /^\/embed\/([a-z]+)\/?$/.exec(window.location.pathname);
+  if (!m) return null;
+  return EMBED_VIEWS.includes(m[1] as View) ? (m[1] as View) : null;
+}
+
 const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
   { id: "overview", label: "Overview", icon: IconGrid },
   { id: "bms", label: "Por BM", icon: IconLayers },
@@ -43,7 +59,8 @@ const NAV: { id: View; label: string; icon: typeof IconGrid }[] = [
 ];
 
 export default function App() {
-  const [view, setView] = useState<View>("overview");
+  const embed = viewDesdeEmbed();
+  const [view, setView] = useState<View>(embed ?? "overview");
   const { theme, toggle } = useTheme();
   const { clientId, setClientId, clients } = useClient();
   const health = usePolling(api.health, 8000);
@@ -57,9 +74,44 @@ export default function App() {
     await api.resetDiario();
   }
 
+  const selector = (
+    <div className={embed ? "w-64" : "px-3 pb-3"}>
+      <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-faint">
+        Cliente
+      </label>
+      <select
+        value={clientId}
+        onChange={(e) => setClientId(e.target.value)}
+        className="w-full rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold text-fg ring-1 ring-line outline-none focus:ring-brand-500"
+      >
+        {(clients.length
+          ? clients
+          : [
+              { id: "mooney", nombre: "Mooney" },
+              { id: "king", nombre: "King" },
+            ]
+        ).map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.nombre}
+          </option>
+        ))}
+      </select>
+      {actual && (
+        <p className="mt-1.5 truncate text-[11px] text-faint">
+          {actual.kommo.configured
+            ? actual.kommo.subdomain
+              ? `${actual.kommo.subdomain}.kommo.com`
+              : "Kommo configurado"
+            : "Kommo sin credenciales"}
+        </p>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar. En /embed la oculta Tracker: el selector queda en el contenido. */}
+      {!embed && (
       <aside className="flex w-64 shrink-0 flex-col border-r border-line bg-surface">
         <div className="flex items-center gap-2.5 px-6 py-6">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30">
@@ -71,37 +123,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="px-3 pb-3">
-          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-faint">
-            Cliente
-          </label>
-          <select
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="w-full rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold text-fg ring-1 ring-line outline-none focus:ring-brand-500"
-          >
-            {(clients.length
-              ? clients
-              : [
-                  { id: "mooney", nombre: "Mooney" },
-                  { id: "king", nombre: "King" },
-                ]
-            ).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-          {actual && (
-            <p className="mt-1.5 truncate text-[11px] text-faint">
-              {actual.kommo.configured
-                ? actual.kommo.subdomain
-                  ? `${actual.kommo.subdomain}.kommo.com`
-                  : "Kommo configurado"
-                : "Kommo sin credenciales"}
-            </p>
-          )}
-        </div>
+        {selector}
 
         <nav className="mt-1 flex-1 space-y-1 px-3">
           {NAV.map((item) => {
@@ -171,9 +193,15 @@ export default function App() {
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
+        {embed && (
+          <div className="flex items-center justify-between border-b border-line px-8 py-3">
+            {selector}
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto px-8 py-6">
           <div key={`${view}-${clientId}`} className="animate-fade-in">
             {clientId === "king" && !kingReady && (
