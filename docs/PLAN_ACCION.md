@@ -2,6 +2,12 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-10-16 — Alta ClienteS2
+
+- Cliente `clienteS2`, nombre ClienteS2, etiqueta Kommo `clientes2`.
+- Paquete con tope 500. Hoy: 0 enviados, 0 errores, 500 restantes.
+- No pisa `clientes1`. La oferta quedó vacía. El link `/cliente` sigue en ClienteS1.
+
 ## 2026-10-16 — Métricas: una sola cuenta
 
 - Cada pantalla del log (funnel, overview, log, clientes, paquete y panel
@@ -27,6 +33,8 @@ Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
   Railway 1fd8d27b SUCCESS). Confirmado en
   tobyap-production.up.railway.app/admin/senderio/funnel: sin sidebar de
   Sender, selector Kommo en CRM, datos del funnel adentro.
+- Cierre: MSG-TOB-20261016-SND-2. Sidebar de Tracker sin cambios. Encabezado
+  del embed lo resolvió SND. Costura cerrada.
 
 ## 2026-10-13 — % error sobre enviados con éxito
 
