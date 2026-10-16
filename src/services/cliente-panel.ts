@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import {
@@ -37,6 +38,28 @@ const DEFAULT_PANEL = (clientId: string): ClientePanel => ({
   notas: "",
   updatedAt: new Date(),
 });
+
+function tokenIgual(a: string, b: string): boolean {
+  const ba = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
+/** Cliente dueño de un token guardado en cliente_panel.acceso_token. */
+export async function clientIdDeAcceso(token: string): Promise<string | null> {
+  if (!token) return null;
+  const rows = await db
+    .select({
+      clientId: clientePanel.clientId,
+      accesoToken: clientePanel.accesoToken,
+    })
+    .from(clientePanel);
+  for (const r of rows) {
+    if (r.accesoToken && tokenIgual(token, r.accesoToken)) return r.clientId;
+  }
+  return null;
+}
 
 export async function getPanel(clientId: string): Promise<ClientePanel> {
   const rows = await db

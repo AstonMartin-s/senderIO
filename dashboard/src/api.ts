@@ -369,9 +369,14 @@ export interface FilaBaseUpload {
 
 const CLIENTE_TOKEN_KEY = "senderio-cliente-token";
 
+function clienteTokenKey(): string {
+  const m = /^\/cliente\/([A-Za-z0-9_-]+)/.exec(window.location.pathname);
+  return m ? `${CLIENTE_TOKEN_KEY}:${m[1]}` : CLIENTE_TOKEN_KEY;
+}
+
 export function getClienteToken(): string {
   try {
-    return localStorage.getItem(CLIENTE_TOKEN_KEY) || "";
+    return localStorage.getItem(clienteTokenKey()) || "";
   } catch {
     return "";
   }
@@ -379,7 +384,7 @@ export function getClienteToken(): string {
 
 export function setClienteToken(token: string) {
   try {
-    localStorage.setItem(CLIENTE_TOKEN_KEY, token);
+    localStorage.setItem(clienteTokenKey(), token);
   } catch {
     /* ignore */
   }

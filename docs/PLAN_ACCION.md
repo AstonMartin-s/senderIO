@@ -7,6 +7,10 @@ Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 - Cliente `clienteS2`, nombre ClienteS2, etiqueta Kommo `clientes2`.
 - Paquete con tope 500. Hoy: 0 enviados, 0 errores, 500 restantes.
 - No pisa `clientes1`. La oferta quedó vacía. El link `/cliente` sigue en ClienteS1.
+- Panel propio: `https://senderio-production.up.railway.app/cliente/clienteS2`.
+  Misma pantalla que S1. Se copió oferta, mensaje, plantilla y redirecciones.
+  La base y la lista de S1 no. El token está en
+  `boveda/senderio/real/cliente-panel-s2.env`.
 
 ## 2026-10-16 — Métricas: una sola cuenta
 

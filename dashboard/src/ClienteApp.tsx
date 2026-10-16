@@ -82,7 +82,10 @@ function Login({ onOk }: { onOk: () => void }) {
           </div>
           <div>
             <p className="text-base font-bold text-fg">Panel Cliente</p>
-            <p className="text-[11px] text-faint">Acceso privado</p>
+            <p className="text-[11px] text-faint">
+              {/^\/cliente\/([A-Za-z0-9_-]+)/.exec(window.location.pathname)?.[1] ??
+                "Acceso privado"}
+            </p>
           </div>
         </div>
         <label className="mb-1 block text-xs font-semibold text-muted">
