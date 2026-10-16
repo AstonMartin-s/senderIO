@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { bmConfig, kpiSnapshots, logMovimientos } from "../db/schema.js";
 import { config } from "../config.js";
+import { parseFechaPanel } from "../lib/time.js";
 import {
   clienteDeSegmento,
   getClientesEtiqueta,
@@ -67,46 +68,180 @@ const colsKpi = {
   segmento: logMovimientos.segmento,
 };
 
-interface RowEtq {
+/** Dos movido_a_envio del mismo lead en esta ventana son el mismo disparo. */
+const DEDUPE_ENVIO_MS = 60_000;
+
+interface EventoKpi {
   bmId: string;
   accion: string;
   leadId: number | null;
   segmento: string | null;
+  ts: Date;
+}
+
+interface EnvioContable {
+  bmId: string;
+  leadId: number | null;
+  segmento: string | null;
+  ts: Date;
+  si: number;
+  no: number;
+  errores: number;
+}
+
+function aFecha(v: Date | string): Date {
+  return v instanceof Date ? v : new Date(v);
 }
 
 /**
- * Filtra movimientos por cliente-etiqueta. La etiqueta (segmento) se captura al
- * enviar; SI/NO/ERROR la heredan del envío del mismo lead. Sin clienteId, no
- * filtra (todas las etiquetas). El resto no reclamado cae en el catch-all (CRM).
+ * Una fila por envío real. El resultado (el último SI, NO o ERROR del lead)
+ * se anota solo en el último envío: así SI y NO quedan dentro de los sin
+ * error, un resultado huérfano no suma, y enviados = sin error + errores.
  */
-function filtrarPorClienteEtiqueta<T extends RowEtq>(
-  rows: T[],
-  clientes: ClienteEtiqueta[],
-  clienteId?: string
-): T[] {
-  if (!clienteId) return rows;
-  const porLead = new Map<string, string>();
+export function enviosContables(rows: EventoKpi[]): EnvioContable[] {
+  const porLead = new Map<string, EventoKpi[]>();
+  const sueltos: EnvioContable[] = [];
   for (const r of rows) {
-    if (r.accion === "movido_a_envio" && r.leadId != null && r.segmento) {
-      const k = `${r.bmId}:${r.leadId}`;
-      if (!porLead.has(k)) porLead.set(k, r.segmento);
+    if (r.leadId == null) {
+      if (r.accion === "movido_a_envio") {
+        sueltos.push({
+          bmId: r.bmId,
+          leadId: null,
+          segmento: r.segmento,
+          ts: aFecha(r.ts),
+          si: 0,
+          no: 0,
+          errores: 0,
+        });
+      }
+      continue;
     }
+    const k = `${r.bmId}:${r.leadId}`;
+    const arr = porLead.get(k);
+    if (arr) arr.push(r);
+    else porLead.set(k, [r]);
   }
-  return rows.filter((r) => {
-    const heredada =
-      r.leadId != null ? porLead.get(`${r.bmId}:${r.leadId}`) : undefined;
-    const seg = r.segmento || heredada || null;
-    return clienteDeSegmento(seg, clientes) === clienteId;
-  });
+
+  const out = [...sueltos];
+  for (const arr of porLead.values()) {
+    const sends = arr
+      .filter((r) => r.accion === "movido_a_envio")
+      .sort((a, b) => aFecha(a.ts).getTime() - aFecha(b.ts).getTime());
+    if (!sends.length) continue;
+    const kept: EventoKpi[] = [];
+    for (const s of sends) {
+      const prev = kept[kept.length - 1];
+      if (prev && aFecha(s.ts).getTime() - aFecha(prev.ts).getTime() < DEDUPE_ENVIO_MS) {
+        continue;
+      }
+      kept.push(s);
+    }
+    const results = arr
+      .filter(
+        (r) =>
+          r.accion === "resultado_si" ||
+          r.accion === "resultado_no" ||
+          r.accion === "resultado_error"
+      )
+      .sort((a, b) => aFecha(a.ts).getTime() - aFecha(b.ts).getTime());
+    const last = results[results.length - 1];
+    const outcome =
+      last?.accion === "resultado_si"
+        ? "si"
+        : last?.accion === "resultado_no"
+          ? "no"
+          : last?.accion === "resultado_error"
+            ? "error"
+            : null;
+    kept.forEach((s, i) => {
+      const ultimo = i === kept.length - 1;
+      out.push({
+        bmId: s.bmId,
+        leadId: s.leadId,
+        segmento: s.segmento,
+        ts: aFecha(s.ts),
+        si: ultimo && outcome === "si" ? 1 : 0,
+        no: ultimo && outcome === "no" ? 1 : 0,
+        errores: ultimo && outcome === "error" ? 1 : 0,
+      });
+    });
+  }
+  return out;
 }
 
-const colsKpiLista = {
-  bmId: logMovimientos.bmId,
-  accion: logMovimientos.accion,
-  ts: logMovimientos.ts,
-  leadId: logMovimientos.leadId,
-  segmento: logMovimientos.segmento,
-};
+function filaVacia(bmId: string): KpiFila {
+  return { bmId, enviados: 0, si: 0, no: 0, errores: 0, pctError: 0, pctSi: 0 };
+}
+
+function cerrarKpi(f: { enviados: number; si: number; errores: number; pctError: number; pctSi: number }) {
+  f.pctError = pctErrorSobreExito(f.enviados, f.errores);
+  f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
+}
+
+function agregarEnvios(envios: EnvioContable[]): KpiFila[] {
+  const porBm = new Map<string, KpiFila>();
+  for (const e of envios) {
+    let f = porBm.get(e.bmId);
+    if (!f) {
+      f = filaVacia(e.bmId);
+      porBm.set(e.bmId, f);
+    }
+    f.enviados += 1;
+    f.si += e.si;
+    f.no += e.no;
+    f.errores += e.errores;
+  }
+  const total = filaVacia("TOTAL");
+  for (const f of porBm.values()) {
+    cerrarKpi(f);
+    total.enviados += f.enviados;
+    total.si += f.si;
+    total.no += f.no;
+    total.errores += f.errores;
+  }
+  cerrarKpi(total);
+  return [...porBm.values(), total];
+}
+
+async function leerEventos(clientId?: string): Promise<EventoKpi[]> {
+  const ids = await bmIdsDeCliente(clientId);
+  const rows = await db
+    .select(colsKpi)
+    .from(logMovimientos)
+    .where(
+      and(
+        inArray(logMovimientos.accion, [...ACCIONES_KPI]),
+        ...(ids ? [inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"])] : [])
+      )
+    );
+  return rows.map((r) => ({
+    bmId: r.bmId,
+    accion: r.accion,
+    leadId: r.leadId,
+    segmento: r.segmento,
+    ts: aFecha(r.ts),
+  }));
+}
+
+function filtrarEnvios(
+  envios: EnvioContable[],
+  desde?: string,
+  hasta?: string,
+  clientes?: ClienteEtiqueta[],
+  etiquetaClienteId?: string
+): EnvioContable[] {
+  const desdeTs = desde ? parseFechaPanel(desde).getTime() : null;
+  const hastaTs = hasta ? parseFechaPanel(hasta).getTime() : null;
+  return envios.filter((e) => {
+    const t = e.ts.getTime();
+    if (desdeTs != null && t < desdeTs) return false;
+    if (hastaTs != null && t > hastaTs) return false;
+    if (etiquetaClienteId && clientes) {
+      return clienteDeSegmento(e.segmento, clientes) === etiquetaClienteId;
+    }
+    return true;
+  });
+}
 
 function localDate(d: Date, tz = config.tz): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -117,134 +252,15 @@ function localDate(d: Date, tz = config.tz): string {
   }).format(d);
 }
 
-/** Agrega los movimientos de un día (local) en filas por BM + TOTAL. */
+/** Agrega los envíos de un día (local) en filas por BM + TOTAL. */
 export async function computeSnapshot(
   fechaLocal: string,
   clientId?: string
 ): Promise<KpiFila[]> {
-  // Traemos una ventana amplia y filtramos por fecha local en JS (volumen bajo).
-  const desde = new Date(`${fechaLocal}T00:00:00Z`);
-  desde.setUTCDate(desde.getUTCDate() - 1);
-  const hasta = new Date(`${fechaLocal}T00:00:00Z`);
-  hasta.setUTCDate(hasta.getUTCDate() + 2);
-
-  const ids = await bmIdsDeCliente(clientId);
-  const rows = await db
-    .select(colsKpi)
-    .from(logMovimientos)
-    .where(
-      and(
-        gte(logMovimientos.ts, desde),
-        lte(logMovimientos.ts, hasta),
-        inArray(logMovimientos.accion, [...ACCIONES_KPI]),
-        ...(ids ? [inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"])] : [])
-      )
-    );
-
-  const porBm = new Map<string, KpiFila>();
-  const ensure = (bmId: string) => {
-    let f = porBm.get(bmId);
-    if (!f) {
-      f = { bmId, enviados: 0, si: 0, no: 0, errores: 0, pctError: 0, pctSi: 0 };
-      porBm.set(bmId, f);
-    }
-    return f;
-  };
-
-  for (const r of rows) {
-    if (localDate(r.ts) !== fechaLocal) continue;
-    const f = ensure(r.bmId);
-    switch (r.accion) {
-      case "movido_a_envio":
-        f.enviados++;
-        break;
-      case "resultado_si":
-        f.si++;
-        break;
-      case "resultado_no":
-        f.no++;
-        break;
-      case "resultado_error":
-        f.errores++;
-        break;
-    }
-  }
-
-  const total: KpiFila = {
-    bmId: "TOTAL",
-    enviados: 0,
-    si: 0,
-    no: 0,
-    errores: 0,
-    pctError: 0,
-    pctSi: 0,
-  };
-  for (const f of porBm.values()) {
-    f.pctError = pctErrorSobreExito(f.enviados, f.errores);
-    f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
-    total.enviados += f.enviados;
-    total.si += f.si;
-    total.no += f.no;
-    total.errores += f.errores;
-  }
-  total.pctError = pctErrorSobreExito(total.enviados, total.errores);
-  total.pctSi = total.enviados
-    ? Math.round((total.si / total.enviados) * 10000) / 100
-    : 0;
-
-  return [...porBm.values(), total];
-}
-
-/** Agrega filas KpiFila a partir de movimientos ya traídos. */
-function agregar(rows: { bmId: string; accion: string }[]): KpiFila[] {
-  const porBm = new Map<string, KpiFila>();
-  const ensure = (bmId: string) => {
-    let f = porBm.get(bmId);
-    if (!f) {
-      f = { bmId, enviados: 0, si: 0, no: 0, errores: 0, pctError: 0, pctSi: 0 };
-      porBm.set(bmId, f);
-    }
-    return f;
-  };
-  for (const r of rows) {
-    const f = ensure(r.bmId);
-    switch (r.accion) {
-      case "movido_a_envio":
-        f.enviados++;
-        break;
-      case "resultado_si":
-        f.si++;
-        break;
-      case "resultado_no":
-        f.no++;
-        break;
-      case "resultado_error":
-        f.errores++;
-        break;
-    }
-  }
-  const total: KpiFila = {
-    bmId: "TOTAL",
-    enviados: 0,
-    si: 0,
-    no: 0,
-    errores: 0,
-    pctError: 0,
-    pctSi: 0,
-  };
-  for (const f of porBm.values()) {
-    f.pctError = pctErrorSobreExito(f.enviados, f.errores);
-    f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
-    total.enviados += f.enviados;
-    total.si += f.si;
-    total.no += f.no;
-    total.errores += f.errores;
-  }
-  total.pctError = pctErrorSobreExito(total.enviados, total.errores);
-  total.pctSi = total.enviados
-    ? Math.round((total.si / total.enviados) * 10000) / 100
-    : 0;
-  return [...porBm.values(), total];
+  const envios = enviosContables(await leerEventos(clientId)).filter(
+    (e) => localDate(e.ts) === fechaLocal
+  );
+  return agregarEnvios(envios);
 }
 
 /** KPIs en vivo para un rango arbitrario (desde el log, incluye el día actual). */
@@ -254,23 +270,11 @@ export async function computeRange(
   clientId?: string,
   etiquetaClienteId?: string
 ): Promise<KpiFila[]> {
-  const conds = [];
-  if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
-  if (hasta) conds.push(lte(logMovimientos.ts, new Date(hasta)));
-  const ids = await bmIdsDeCliente(clientId);
-  if (ids) conds.push(inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"]));
-  const rows = await db
-    .select(colsKpi)
-    .from(logMovimientos)
-    .where(
-      and(
-        ...(conds.length ? conds : []),
-        inArray(logMovimientos.accion, [...ACCIONES_KPI])
-      )
-    );
-  if (!etiquetaClienteId) return agregar(rows);
-  const clientes = await getClientesEtiqueta();
-  return agregar(filtrarPorClienteEtiqueta(rows, clientes, etiquetaClienteId));
+  const envios = enviosContables(await leerEventos(clientId));
+  const clientes = etiquetaClienteId ? await getClientesEtiqueta() : undefined;
+  return agregarEnvios(
+    filtrarEnvios(envios, desde, hasta, clientes, etiquetaClienteId)
+  );
 }
 
 function cerrarFilaLista(f: KpiLista) {
@@ -278,23 +282,8 @@ function cerrarFilaLista(f: KpiLista) {
   f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
 }
 
-/** KPIs por etiqueta de Kommo (lista). SI/NO/ERROR heredan la del envío del lead. */
-function agregarPorLista(
-  rows: {
-    bmId: string;
-    accion: string;
-    leadId: number | null;
-    segmento: string | null;
-  }[]
-): KpiLista[] {
-  const porLead = new Map<string, string>();
-  for (const r of rows) {
-    if (r.accion === "movido_a_envio" && r.leadId != null && r.segmento) {
-      const k = `${r.bmId}:${r.leadId}`;
-      if (!porLead.has(k)) porLead.set(k, r.segmento);
-    }
-  }
-
+/** KPIs por etiqueta de Kommo (lista). La etiqueta es la del envío. */
+function agregarPorLista(envios: EnvioContable[]): KpiLista[] {
   const porLista = new Map<string, KpiLista & { bmSet: Set<string> }>();
   const ensure = (lista: string) => {
     let f = porLista.get(lista);
@@ -315,26 +304,14 @@ function agregarPorLista(
     return f;
   };
 
-  for (const r of rows) {
-    const heredada =
-      r.leadId != null ? porLead.get(`${r.bmId}:${r.leadId}`) : undefined;
-    const lista = r.segmento || heredada || LISTA_SIN_ETIQUETA;
+  for (const e of envios) {
+    const lista = e.segmento || LISTA_SIN_ETIQUETA;
     const f = ensure(lista);
-    f.bmSet.add(r.bmId);
-    switch (r.accion) {
-      case "movido_a_envio":
-        f.enviados++;
-        break;
-      case "resultado_si":
-        f.si++;
-        break;
-      case "resultado_no":
-        f.no++;
-        break;
-      case "resultado_error":
-        f.errores++;
-        break;
-    }
+    f.bmSet.add(e.bmId);
+    f.enviados += 1;
+    f.si += e.si;
+    f.no += e.no;
+    f.errores += e.errores;
   }
 
   const total: KpiLista = {
@@ -369,24 +346,10 @@ export async function computeListas(
   clientId?: string,
   etiquetaClienteId?: string
 ): Promise<KpiLista[]> {
-  const conds = [];
-  if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
-  if (hasta) conds.push(lte(logMovimientos.ts, new Date(hasta)));
-  const ids = await bmIdsDeCliente(clientId);
-  if (ids) conds.push(inArray(logMovimientos.bmId, ids.length ? ids : ["__none__"]));
-  const rows = await db
-    .select(colsKpiLista)
-    .from(logMovimientos)
-    .where(
-      and(
-        ...(conds.length ? conds : []),
-        inArray(logMovimientos.accion, [...ACCIONES_KPI])
-      )
-    );
-  if (!etiquetaClienteId) return agregarPorLista(rows);
-  const clientes = await getClientesEtiqueta();
+  const envios = enviosContables(await leerEventos(clientId));
+  const clientes = etiquetaClienteId ? await getClientesEtiqueta() : undefined;
   return agregarPorLista(
-    filtrarPorClienteEtiqueta(rows, clientes, etiquetaClienteId)
+    filtrarEnvios(envios, desde, hasta, clientes, etiquetaClienteId)
   );
 }
 
@@ -411,30 +374,10 @@ export async function computeResumenClientesEtiqueta(
   desde?: string,
   hasta?: string
 ): Promise<ResumenClienteEtiqueta[]> {
-  const conds = [];
-  if (desde) conds.push(gte(logMovimientos.ts, new Date(desde)));
-  if (hasta) conds.push(lte(logMovimientos.ts, new Date(hasta)));
-  const [rows, clientes] = await Promise.all([
-    db
-      .select(colsKpiLista)
-      .from(logMovimientos)
-      .where(
-        and(
-          ...(conds.length ? conds : []),
-          inArray(logMovimientos.accion, [...ACCIONES_KPI])
-        )
-      ),
+  const [envios, clientes] = await Promise.all([
+    leerEventos().then(enviosContables),
     getClientesEtiqueta(),
   ]);
-
-  const porLead = new Map<string, string>();
-  for (const r of rows) {
-    if (r.accion === "movido_a_envio" && r.leadId != null && r.segmento) {
-      const k = `${r.bmId}:${r.leadId}`;
-      if (!porLead.has(k)) porLead.set(k, r.segmento);
-    }
-  }
-
   const acc = new Map<string, ResumenClienteEtiqueta>();
   for (const c of clientes) {
     acc.set(c.id, {
@@ -449,35 +392,16 @@ export async function computeResumenClientesEtiqueta(
       pctSi: 0,
     });
   }
-
-  for (const r of rows) {
-    const heredada =
-      r.leadId != null ? porLead.get(`${r.bmId}:${r.leadId}`) : undefined;
-    const seg = r.segmento || heredada || null;
-    const cid = clienteDeSegmento(seg, clientes);
-    const f = acc.get(cid);
+  for (const e of filtrarEnvios(envios, desde, hasta)) {
+    const f = acc.get(clienteDeSegmento(e.segmento, clientes));
     if (!f) continue;
-    switch (r.accion) {
-      case "movido_a_envio":
-        f.enviados++;
-        break;
-      case "resultado_si":
-        f.si++;
-        break;
-      case "resultado_no":
-        f.no++;
-        break;
-      case "resultado_error":
-        f.errores++;
-        break;
-    }
+    f.enviados += 1;
+    f.si += e.si;
+    f.no += e.no;
+    f.errores += e.errores;
   }
-
   const out = [...acc.values()];
-  for (const f of out) {
-    f.pctError = pctErrorSobreExito(f.enviados, f.errores);
-    f.pctSi = f.enviados ? Math.round((f.si / f.enviados) * 10000) / 100 : 0;
-  }
+  for (const f of out) cerrarKpi(f);
   return out;
 }
 

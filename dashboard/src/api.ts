@@ -350,6 +350,8 @@ export interface ClientePanelResp {
     total: number | null;
     enviados: number;
     enviadosSinError: number;
+    si: number;
+    no: number;
     consumidos: number;
     restantes: number | null;
     errores: number;

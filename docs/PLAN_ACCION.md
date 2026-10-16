@@ -2,6 +2,18 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-10-16 — Métricas: una sola cuenta
+
+- Cada pantalla del log (funnel, overview, log, clientes, paquete y panel
+  del cliente) cuenta envíos, no eventos sueltos. El resultado es el último
+  SI, NO o ERROR del lead y se anota en el último envío.
+- Cierra siempre: enviados = sin error + errores, y sin error = SI + NO +
+  los que siguen en envío. Un disparo duplicado en menos de un minuto cuenta
+  una vez. Un resultado sin envío no suma.
+- El % que pausa un BM sigue siendo el de los últimos 20 resultados. No es
+  el % de cobro.
+- El embed muestra el encabezado SenderIO / Orquestador de goteo.
+
 ## 2026-10-16 — Panel embebido para Tracker
 
 - `/embed/{overview,bms,plantillas,funnel,log,clientes,verificador}` abre la
@@ -11,7 +23,10 @@ Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 - Sin Basic en la URL. La página se entrega si el Referer es Tracker (o un
   refresh del propio embed) y deja cookie para el API. El panel directo sigue
   con Basic.
-- Ref: MSG-TOB-20261016-SND-1. TOB todavía no desplegó la sidebar.
+- Ref: MSG-TOB-20261016-SND-1. TOB desplegó la sidebar (d05366a,
+  Railway 1fd8d27b SUCCESS). Confirmado en
+  tobyap-production.up.railway.app/admin/senderio/funnel: sin sidebar de
+  Sender, selector Kommo en CRM, datos del funnel adentro.
 
 ## 2026-10-13 — % error sobre enviados con éxito
 

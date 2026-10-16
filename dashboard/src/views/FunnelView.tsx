@@ -215,7 +215,12 @@ export default function FunnelView() {
                 <th className="w-[10%] px-3 py-3 text-right font-medium">SI</th>
                 <th className="w-[10%] px-3 py-3 text-right font-medium">NO</th>
                 <th className="w-[11%] px-3 py-3 text-right font-medium">ERROR</th>
-                <th className="w-[15%] px-3 py-3 text-right font-medium">% error</th>
+                <th
+                  className="w-[15%] px-3 py-3 text-right font-medium"
+                  title="Errores / enviados con éxito (enviados − errores)"
+                >
+                  % error
+                </th>
                 <th className="w-[15%] px-3 py-3 text-right font-medium">% conv.</th>
               </tr>
             </thead>
@@ -285,7 +290,12 @@ export default function FunnelView() {
                 <th className="w-[8%] px-3 py-3 text-right font-medium">SI</th>
                 <th className="w-[8%] px-3 py-3 text-right font-medium">NO</th>
                 <th className="w-[10%] px-3 py-3 text-right font-medium">ERROR</th>
-                <th className="w-[10%] px-3 py-3 text-right font-medium">% error</th>
+                <th
+                  className="w-[10%] px-3 py-3 text-right font-medium"
+                  title="Errores / enviados con éxito (enviados − errores)"
+                >
+                  % error
+                </th>
                 <th className="w-[10%] px-3 py-3 text-right font-medium">% conv.</th>
               </tr>
             </thead>

@@ -38,7 +38,11 @@ export default function LogView() {
   );
 
   const bmsQ = usePolling<Bm[]>(() => api.bms(clientId), 15000);
-  const kpiQ = usePolling<KpiFila[]>(() => api.kpisHoy(clientId), 10000);
+  const rango = !!(desde || hasta || bm);
+  const kpiQ = usePolling<KpiFila[]>(
+    () => (desde || hasta ? api.kpisRango(filtro) : api.kpisHoy(clientId)),
+    10000
+  );
   const plQ = usePolling<Plantilla[]>(() => api.plantillas(undefined, clientId), 30000);
   const { data, refresh, loading, error } = usePolling<Movimiento[]>(
     () => api.movimientos(200, filtro),
@@ -47,7 +51,8 @@ export default function LogView() {
   // Refrescá al instante cuando cambia algún filtro (sin esperar al próximo poll).
   useEffect(() => {
     refresh();
-  }, [filtro, refresh]);
+    kpiQ.refresh();
+  }, [filtro, refresh, kpiQ.refresh]);
 
   const rows = data ?? [];
   const bms = bmsQ.data ?? [];
@@ -61,14 +66,14 @@ export default function LogView() {
     return m;
   }, [plQ.data]);
   const total =
-    (kpiQ.data ?? []).find((k) => k.bmId === "TOTAL") ??
+    (kpiQ.data ?? []).find((k) => k.bmId === (bm || "TOTAL")) ??
     ({ enviados: 0, si: 0, no: 0, errores: 0, pctError: 0, pctSi: 0 } as KpiFila);
 
   return (
     <div className="space-y-5">
       {/* Estadísticas del día */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Stat label="Enviados hoy" value={total.enviados} tone="brand" />
+        <Stat label={rango ? "Enviados" : "Enviados hoy"} value={total.enviados} tone="brand" />
         <Stat label="Sí" value={total.si} tone="ok" />
         <Stat label="No" value={total.no} tone="warn" />
         <Stat label="Errores" value={total.errores} tone="bad" />

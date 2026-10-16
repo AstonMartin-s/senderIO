@@ -513,8 +513,6 @@ export default function ClienteApp() {
     );
   }
 
-  const r = data?.resumen;
-
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
       <header className="mb-6 flex items-center gap-3">
@@ -613,18 +611,18 @@ export default function ClienteApp() {
           />
           <StatCard
             label="Enviados"
-            value={r ? r.enviado + r.respondio_si + r.respondio_no + r.error : 0}
+            value={data?.paquete.enviados ?? 0}
             icon={<IconSend />}
           />
           <StatCard
             label="Respondieron SÍ"
-            value={r?.respondio_si ?? 0}
+            value={data?.paquete.si ?? 0}
             accent="bg-emerald-500/15 text-emerald-500"
             icon={<IconCheck />}
           />
           <StatCard
             label="Errores"
-            value={r?.error ?? 0}
+            value={data?.paquete.errores ?? 0}
             accent="bg-rose-500/15 text-rose-500"
             icon={<IconAlert />}
           />
@@ -632,8 +630,16 @@ export default function ClienteApp() {
             label="Base cruda recibida"
             value={data?.bases.baseCruda ?? 0}
           />
-          <StatCard label="Pendientes" value={r?.pendiente ?? 0} />
-          <StatCard label="Respondieron NO" value={r?.respondio_no ?? 0} />
+          <StatCard
+            label="En envío"
+            value={Math.max(
+              0,
+              (data?.paquete.enviadosSinError ?? 0) -
+                (data?.paquete.si ?? 0) -
+                (data?.paquete.no ?? 0)
+            )}
+          />
+          <StatCard label="Respondieron NO" value={data?.paquete.no ?? 0} />
           <StatCard
             label="Redirecciones"
             value={data?.panel.redirecciones.length ?? 0}

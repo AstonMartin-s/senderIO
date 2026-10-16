@@ -332,7 +332,7 @@ export default function ClientesView() {
             <span className="text-[11px] text-faint">
               {c.paquete.conTope
                 ? `${c.paquete.enviadosSinError}/${c.paquete.total} sin error`
-                : `${Math.max(0, (resumen.find((r) => r.id === c.id)?.enviados ?? 0) - (resumen.find((r) => r.id === c.id)?.errores ?? 0))} sin error`}{" "}
+                : `${c.paquete.enviadosSinError} sin error`}{" "}
               · cruda {c.bases.baseCruda} · filtrada {c.bases.listaFiltrada}
             </span>
           </button>
@@ -434,8 +434,8 @@ export default function ClientesView() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Base cruda" value={data.bases.baseCruda} />
             <StatCard label="Lista filtrada" value={data.bases.listaFiltrada} />
-            <StatCard label="Respondieron SÍ" value={data.resumen.respondio_si} />
-            <StatCard label="Pendientes" value={data.resumen.pendiente} />
+            <StatCard label="SÍ en la lista" value={data.resumen.respondio_si} />
+            <StatCard label="Pendientes en la lista" value={data.resumen.pendiente} />
           </div>
 
           <Card className="p-5">

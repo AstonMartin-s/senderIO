@@ -594,6 +594,8 @@ export async function consumoPaquete(clientId: string) {
   const total = panel.paqueteTotal;
   const enviados = row?.enviados ?? 0;
   const errores = row?.errores ?? 0;
+  const si = row?.si ?? 0;
+  const no = row?.no ?? 0;
   const enviadosSinError = Math.max(0, enviados - errores);
   const consumidos = enviadosSinError;
   const restantes = conTope ? Math.max(0, total - consumidos) : null;
@@ -606,6 +608,8 @@ export async function consumoPaquete(clientId: string) {
     total: conTope ? total : null,
     enviados,
     enviadosSinError,
+    si,
+    no,
     consumidos,
     restantes,
     errores,

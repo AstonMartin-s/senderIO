@@ -198,7 +198,16 @@ export default function App() {
       {/* Main */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {embed && (
-          <div className="flex items-center justify-between border-b border-line px-8 py-3">
+          <div className="flex items-center justify-between gap-4 border-b border-line px-8 py-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 text-white shadow-lg shadow-brand-500/30">
+                <IconActivity className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-base font-bold tracking-tight text-fg">SenderIO</p>
+                <p className="text-[11px] text-faint">Orquestador de goteo</p>
+              </div>
+            </div>
             {selector}
           </div>
         )}
