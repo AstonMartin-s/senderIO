@@ -55,10 +55,13 @@ function basicAuthExento(url: string): boolean {
     url === "/api/cliente" ||
     url.startsWith("/api/cliente/") ||
     url.startsWith("/api/cliente?") ||
-    // El panel-cliente (/cliente) tiene su propio login por token; su HTML/estáticos
-    // no deben pedir Basic Auth del panel de operación.
+    // El panel-cliente (/cliente) tiene su propio login por token; su HTML
+    // no debe pedir Basic Auth del panel de operación.
     url === "/cliente" ||
-    url.startsWith("/cliente/")
+    url.startsWith("/cliente/") ||
+    // El JS y el CSS salen de /assets. Si piden Basic, el navegador muestra
+    // usuario y contraseña antes del token del cliente.
+    url.startsWith("/assets/")
   );
 }
 
