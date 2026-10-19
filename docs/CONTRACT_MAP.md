@@ -5,7 +5,16 @@ modifique la superficie pública + R1 al dueño.
 
 ## SND ↔ WAC (wa-checker) — embed de UI
 
-- **Tipo:** dependencia visual (iframe), sin contrato de datos/API.
+- **Tipo:** iframe del verificador, más un cruce de teléfonos.
+- **Cruce:** `POST /api/errores/cruce` con `Authorization: Bearer`.
+  Body `{ telefonos: string[] }` (máximo 20.000). Respuesta `{ anulados }`
+  con los mismos valores que ya tuvieron error en el log de SenderIO.
+  No devuelve el log entero. Sin token configurado → 503.
+  Variable en SenderIO: `ERRORES_CRUCE_TOKEN`. En wa-checker:
+  `SND_ERRORES_URL` y `SND_ERRORES_TOKEN`.
+- **UI:** en el paso Verificar, el tick «Comparar con logs de errores»
+  saca esos números de la tanda antes de consultar WhatsApp. Si el cruce
+  no responde, la tanda no arranca.
 - **Dónde:** `dashboard/src/views/VerificadorView.tsx` (sección "Verificador WA").
 - **Variable de build:** `VITE_WACHECKER_URL`
   (default `https://wa-checker.up.railway.app`).
@@ -17,7 +26,8 @@ modifique la superficie pública + R1 al dueño.
   riesgo extra en el servicio siempre-activo.
 - **Cambio de dominio del wa-checker** → WAC avisa a SND (R1) para
   actualizar `VITE_WACHECKER_URL` y esta entrada.
-- **Ref:** MSG-WAC-20260922-1 · PR SenderIO #1 · wa-checker main 95fe4d0.
+- **Ref:** MSG-WAC-20260922-1 · MSG-SND-20261019-WAC-1 · MSG-WAC-20261019-1
+  (ACK, wa-checker `603aeb7`). El token quedó en los dos servicios.
 
 ## SND ↔ TOB (TrackerIO) — embed del panel de operación
 

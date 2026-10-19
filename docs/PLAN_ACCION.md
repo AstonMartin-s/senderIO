@@ -2,6 +2,37 @@
 
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
+## 2026-10-19 — Cruce de errores para el wa-checker
+
+- `POST /api/errores/cruce` devuelve los teléfonos de una lista que ya
+  tuvieron error. El tick está en el paso Verificar del wa-checker y los
+  saca antes de consultar WhatsApp. Contrato en CONTRACT_MAP.
+- ACK WAC MSG-WAC-20261019-1: tick publicado en wa-checker `603aeb7`.
+  El token quedó en senderIO y en wa-checker. El código de SenderIO
+  todavía no estaba en main; se publica con este cambio.
+
+## 2026-10-19 — BM1: pack de ClienteS1 cerrado a 500
+
+- La base siguió vacía. Los 3 que faltaban se movieron a mano a Ejecución
+  Plantilla 1 (SPAM NUMERO #1). Leads 28263742, 28263740 y 28263708, etiqueta
+  ClienteS1, sin fila previa de envío.
+- Se anotaron en el log como movido_a_envio (teléfono y segmento). No se
+  volvió a mover nada en Kommo. Paquete: 500 enviados sin error, 79 errores,
+  0 restantes. BM1: enviados hoy = 3.
+- Los 2.276 errores del log están todos sellados `error_3132`. El bot manda
+  cualquier fallo de envío a la columna ERROR y SenderIO no guarda el código
+  de Meta. En la ficha de Kommo no queda nota ni evento con el motivo.
+- El código fino (5132, 5133, 5126) está en el chat. `GET /talks/{id}/messages`
+  responde 403: a la integración le falta el permiso External chat history.
+  Ese método, en la doc, solo dice si falló, no el número del globo.
+- Script: `scripts/errores-chat.ts`. Token nuevo en la bóveda
+  (`kommo-chat.token` y `KOMMO_TOKEN` del .env local). No se cambió Railway.
+  El chat responde, pero el mensaje solo trae `delivery_status: error`.
+  El 5132 / 5133 / 5126 del globo no viene en la API.
+- Limpieza de cupo: el log guarda el error con teléfono en 2274 de 2276.
+  Borrar el lead en Kommo no borra eso. Para liberar cupo sin perder el chat,
+  mover ERROR y NO a Cerrado-perdido (No finalizado). Envío y SI se dejan.
+
 ## 2026-10-16 — Alta ClienteS2
 
 - Cliente `clienteS2`, nombre ClienteS2, etiqueta Kommo `clientes2`.

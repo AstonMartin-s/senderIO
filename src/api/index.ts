@@ -16,6 +16,7 @@ import { clientRoutes } from "./routes/clients.js";
 import { clientePanelRoutes } from "./routes/cliente-panel.js";
 import { adminClienteRoutes } from "./routes/admin-clientes.js";
 import { trazaRoutes } from "./routes/traza.js";
+import { erroresCruceRoutes } from "./routes/errores-cruce.js";
 import {
   embedRefererOk,
   embedView,
@@ -34,6 +35,7 @@ const dashboardDist = join(__dirname, "../../dashboard/dist");
  *  - /health           (probe de Railway)
  *  - /webhook/*         (Kommo, valida su propio secreto)
  *  - /traza/*           (Control, Bearer TRAZA_FEED_TOKEN)
+ *  - /api/errores/cruce (wa-checker, Bearer ERRORES_CRUCE_TOKEN)
  *  - /api/cliente/*     (panel-cliente, Bearer CLIENTE_PANEL_TOKEN)
  * Credencial: ADMIN_USER / ADMIN_PASSWORD (default local admin/admin321).
  */
@@ -49,6 +51,7 @@ function basicAuthExento(url: string): boolean {
     url === "/health" ||
     url.startsWith("/webhook") ||
     url.startsWith("/traza") ||
+    url.startsWith("/api/errores/cruce") ||
     // Solo el panel-cliente (/api/cliente/…, Bearer propio) queda exento. Ojo:
     // exigimos la barra para no exentar rutas como /api/clientes-etiqueta, que
     // son del panel de operación y sí requieren Basic Auth.
@@ -132,6 +135,7 @@ async function build() {
   await app.register(clientePanelRoutes);
   await app.register(adminClienteRoutes);
   await app.register(trazaRoutes);
+  await app.register(erroresCruceRoutes);
   await app.register(webhookRoutes);
   await app.register(bmRoutes);
   await app.register(controlRoutes);
