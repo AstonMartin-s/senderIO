@@ -199,7 +199,8 @@ export default function ClientesView() {
   const pq = data?.paquete;
   // Al elegir un cliente, la tabla de arriba muestra solo esa fila (para el
   // screenshot). Si no hay selección, se ven todos.
-  const nombreSel = lista.find((c) => c.id === sel)?.nombre ?? null;
+  const selCliente = lista.find((c) => c.id === sel) ?? null;
+  const nombreSel = selCliente?.nombre ?? null;
   const resumenVisible = sel
     ? resumen.filter((c) => c.id === sel || c.nombre === nombreSel)
     : resumen;
@@ -400,30 +401,37 @@ export default function ClientesView() {
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        {lista.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setSel(c.id)}
-            className={`rounded-xl px-4 py-2 text-left ring-1 transition-all ${
-              sel === c.id
-                ? "bg-brand-500/12 text-fg ring-brand-500/40"
-                : "bg-surface text-muted ring-line hover:text-fg"
-            }`}
-          >
-            <span className="block text-sm font-semibold">{c.nombre}</span>
-            <span className="text-[11px] text-faint">
-              {c.paquete.conTope
-                ? `${c.paquete.enviadosSinError}/${c.paquete.total} sin error`
-                : `${c.paquete.enviadosSinError} sin error`}{" "}
-              · cruda {c.bases.baseCruda} · filtrada {c.bases.listaFiltrada}
-            </span>
-          </button>
-        ))}
-        {!lista.length && (
+      <Card className="flex flex-wrap items-center gap-3 p-4">
+        <label className="text-xs font-semibold uppercase tracking-wide text-faint">
+          Cliente
+        </label>
+        {lista.length ? (
+          <>
+            <select
+              value={sel ?? ""}
+              onChange={(e) => setSel(e.target.value || null)}
+              className="min-w-[200px] rounded-lg border border-line-strong bg-surface-2 px-3 py-1.5 text-sm text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
+            >
+              {lista.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+            {selCliente && (
+              <span className="text-[11px] text-faint">
+                {selCliente.paquete.conTope
+                  ? `${selCliente.paquete.enviadosSinError}/${selCliente.paquete.total} sin error`
+                  : `${selCliente.paquete.enviadosSinError} sin error`}{" "}
+                · cruda {selCliente.bases.baseCruda} · filtrada{" "}
+                {selCliente.bases.listaFiltrada}
+              </span>
+            )}
+          </>
+        ) : (
           <p className="text-sm text-faint">No hay clientes de paquete.</p>
         )}
-      </div>
+      </Card>
 
       {sel && (
         <Card className="p-5">
