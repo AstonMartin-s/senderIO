@@ -107,16 +107,11 @@ export async function kpiRoutes(app: FastifyInstance) {
     }
   });
 
-  // Métricas por cliente-etiqueta (sección Clientes). Sin rango = día en curso.
+  // Métricas por cliente-etiqueta (sección Clientes). Sin rango = TODO el
+  // historial (total). `total=1` fuerza el total aunque el front mande fechas
+  // vacías. Para el día en curso, el front manda desde/hasta de hoy.
   app.get("/api/clientes-etiqueta/resumen", async (req) => {
     const q = req.query as { desde?: string; hasta?: string };
-    if (!q.desde && !q.hasta) {
-      const hoy = todayLocal();
-      return computeResumenClientesEtiqueta(
-        `${hoy}T00:00:00`,
-        `${hoy}T23:59:59`
-      );
-    }
     return computeResumenClientesEtiqueta(q.desde, q.hasta);
   });
 

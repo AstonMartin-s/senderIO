@@ -137,6 +137,11 @@ export default function ClientesView() {
   const [resumen, setResumen] = useState<ResumenClienteEtiqueta[]>([]);
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
+  // Período de la tabla de arriba. Por defecto "total" (todo el historial),
+  // que es el dato importante. Los presets completan desde/hasta.
+  const [preset, setPreset] = useState<"total" | "hoy" | "ayer" | "7d" | "rango">(
+    "total"
+  );
   const [kommo, setKommo] = useState<ReconcileEtiqueta | null>(null);
   const [kommoBusy, setKommoBusy] = useState(false);
   const [kommoErr, setKommoErr] = useState<string | null>(null);
@@ -159,6 +164,7 @@ export default function ClientesView() {
       adminClienteApi.list(),
       api
         .clientesEtiquetaResumen({
+          // "total" manda sin fechas = todo el historial.
           desde: desde ? `${desde}T00:00:00` : undefined,
           hasta: hasta ? `${hasta}T23:59:59` : undefined,
         })
@@ -191,10 +197,60 @@ export default function ClientesView() {
 
   const p = data?.panel;
   const pq = data?.paquete;
-  const rango = !!(desde || hasta);
-  const periodoLabel = rango
-    ? `${desde || "…"} → ${hasta || "…"}`
-    : "hoy";
+  // Al elegir un cliente, la tabla de arriba muestra solo esa fila (para el
+  // screenshot). Si no hay selección, se ven todos.
+  const nombreSel = lista.find((c) => c.id === sel)?.nombre ?? null;
+  const resumenVisible = sel
+    ? resumen.filter((c) => c.id === sel || c.nombre === nombreSel)
+    : resumen;
+  const periodoLabel =
+    preset === "total"
+      ? "total"
+      : preset === "hoy"
+        ? "hoy"
+        : preset === "ayer"
+          ? "ayer"
+          : preset === "7d"
+            ? "últimos 7 días"
+            : `${desde || "…"} → ${hasta || "…"}`;
+
+  function ymd(d: Date): string {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Argentina/Cordoba",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  }
+
+  function aplicarPreset(p: "total" | "hoy" | "ayer" | "7d") {
+    setPreset(p);
+    if (p === "total") {
+      setDesde("");
+      setHasta("");
+      return;
+    }
+    const hoy = ymd(new Date());
+    if (p === "hoy") {
+      setDesde(hoy);
+      setHasta(hoy);
+    } else if (p === "ayer") {
+      const ayer = ymd(new Date(Date.now() - 86_400_000));
+      setDesde(ayer);
+      setHasta(ayer);
+    } else {
+      const d7 = ymd(new Date(Date.now() - 6 * 86_400_000));
+      setDesde(d7);
+      setHasta(hoy);
+    }
+  }
+
+  const BOTONES: Array<{ id: "total" | "hoy" | "ayer" | "7d"; label: string }> = [
+    { id: "total", label: "Total" },
+    { id: "hoy", label: "Hoy" },
+    { id: "ayer", label: "Ayer" },
+    { id: "7d", label: "7 días" },
+  ];
 
   return (
     <div className="space-y-5">
@@ -224,17 +280,50 @@ export default function ClientesView() {
           <div>
             <h3 className="text-sm font-bold text-fg">
               Métricas por etiqueta ({periodoLabel})
+              {sel && nombreSel && (
+                <span className="ml-2 text-xs font-normal text-brand-400">
+                  · solo {nombreSel}
+                </span>
+              )}
             </h3>
             <p className="mt-1 text-[11px] text-faint">
               Lo que el log registró en el período, por etiqueta del envío. El
               tablero de Kommo es el stock actual e incluye días anteriores.
+              {sel && " Mostrando solo el cliente elegido abajo."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {sel && (
+              <button
+                onClick={() => setSel(null)}
+                className="rounded-lg px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
+                title="Ver la tabla con todos los clientes"
+              >
+                Ver todos
+              </button>
+            )}
+            <div className="flex items-center gap-1 rounded-lg bg-surface-2 p-0.5">
+              {BOTONES.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => aplicarPreset(b.id)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    preset === b.id
+                      ? "bg-brand-500/20 text-fg"
+                      : "text-muted hover:text-fg"
+                  }`}
+                >
+                  {b.label}
+                </button>
+              ))}
+            </div>
             <input
               type="date"
               value={desde}
-              onChange={(e) => setDesde(e.target.value)}
+              onChange={(e) => {
+                setPreset("rango");
+                setDesde(e.target.value);
+              }}
               title="Desde"
               className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
             />
@@ -242,21 +331,13 @@ export default function ClientesView() {
             <input
               type="date"
               value={hasta}
-              onChange={(e) => setHasta(e.target.value)}
+              onChange={(e) => {
+                setPreset("rango");
+                setHasta(e.target.value);
+              }}
               title="Hasta"
               className="rounded-lg border border-line-strong bg-surface-2 px-2.5 py-1.5 text-xs text-fg outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/30"
             />
-            {rango && (
-              <button
-                onClick={() => {
-                  setDesde("");
-                  setHasta("");
-                }}
-                className="rounded-lg px-2 py-1.5 text-xs text-muted hover:bg-surface-2"
-              >
-                Hoy
-              </button>
-            )}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -284,7 +365,7 @@ export default function ClientesView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
-              {resumen.map((c) => (
+              {resumenVisible.map((c) => (
                 <tr key={c.id} className="text-fg hover:bg-surface-2">
                   <td className="px-4 py-2.5 font-semibold">
                     {c.nombre}
@@ -305,10 +386,12 @@ export default function ClientesView() {
                   <td className="px-3 py-2.5 text-right tabular-nums text-muted">{c.pctSi}%</td>
                 </tr>
               ))}
-              {!resumen.length && (
+              {!resumenVisible.length && (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-faint">
-                    Sin actividad en el período.
+                    {sel
+                      ? `${nombreSel ?? "Este cliente"} no tuvo actividad en el período.`
+                      : "Sin actividad en el período."}
                   </td>
                 </tr>
               )}
