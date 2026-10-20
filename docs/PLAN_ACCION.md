@@ -1,5 +1,12 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-10-20 — BM5 quieto con base
+
+- BASE DE DATOS de Fisioforma tiene 113 fichas. El BM está activo y en
+  ventana. El reloj se cortó el 19 a las 20:40: un tick tiró `fetch failed`
+  y no se reprogramó. El resto de los BM siguió. El tick ahora se rearma
+  a los 60s si falla.
+
 Registro vivo de avances y contratos (R3/R4). Instancia: Aston · tag SND.
 
 ## 2026-10-19 — Cruce de errores para el wa-checker

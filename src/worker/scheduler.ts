@@ -75,6 +75,9 @@ async function tick(bmId: string, modo: "goteo" | "panel" = "goteo") {
   enProceso.add(bmId);
   try {
     await tickInner(bmId, modo);
+  } catch (err) {
+    console.error(`[worker:${bmId}] tick falló, rearmo en 60s:`, err);
+    programar(bmId, 60);
   } finally {
     enProceso.delete(bmId);
   }
