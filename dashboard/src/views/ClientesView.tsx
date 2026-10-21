@@ -342,7 +342,7 @@ export default function ClientesView() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-base">
             <thead>
               <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
                 <th className="px-4 py-2.5 font-medium">Cliente</th>
@@ -368,7 +368,7 @@ export default function ClientesView() {
             <tbody className="divide-y divide-line">
               {resumenVisible.map((c) => (
                 <tr key={c.id} className="text-fg hover:bg-surface-2">
-                  <td className="px-4 py-2.5 font-semibold">
+                  <td className="px-4 py-3 font-semibold">
                     {c.nombre}
                     {c.etiquetas.length > 0 && (
                       <span className="ml-2 text-[11px] font-normal text-faint">
@@ -376,15 +376,15 @@ export default function ClientesView() {
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{c.enviados}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">
+                  <td className="px-3 py-3 text-right text-xl font-semibold tabular-nums">{c.enviados}</td>
+                  <td className="px-3 py-3 text-right text-xl font-semibold tabular-nums">
                     {Math.max(0, c.enviados - c.errores)}
                   </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-emerald-600 dark:text-emerald-300">{c.si}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-amber-600 dark:text-amber-300">{c.no}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-300">{c.errores}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-muted">{c.pctError}%</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-muted">{c.pctSi}%</td>
+                  <td className="px-3 py-3 text-right text-xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-300">{c.si}</td>
+                  <td className="px-3 py-3 text-right text-xl font-semibold tabular-nums text-amber-600 dark:text-amber-300">{c.no}</td>
+                  <td className="px-3 py-3 text-right text-xl font-semibold tabular-nums text-rose-600 dark:text-rose-300">{c.errores}</td>
+                  <td className="px-3 py-3 text-right text-base tabular-nums text-muted">{c.pctError}%</td>
+                  <td className="px-3 py-3 text-right text-base tabular-nums text-muted">{c.pctSi}%</td>
                 </tr>
               ))}
               {!resumenVisible.length && (
