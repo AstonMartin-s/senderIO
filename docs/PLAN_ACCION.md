@@ -1,5 +1,26 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-10-23 — Identificador K1K para el link del SalesBot
+
+- La base K1K entra al mismo combo que Fisio/Money. El SalesBot no puede
+  condicionar por etiqueta: solo por campo de lead.
+- Antes de mover, el worker escribe la etiqueta en el campo IDENTIFICADOR
+  (si alguna es K1K, el valor es "K1K"). El bot, en la respuesta Sí, manda
+  el link de K1K o el de Fisio según ese campo. NO y ERROR no cambian.
+- Cliente-etiqueta `k1k` para que esas métricas no caigan en el catch-all CRM.
+
+## 2026-10-20 — Errores de Kommo: CRM no los ve
+
+- Pregunta a CRM (MSG-SND-20261020-CRM-2) por el código fino de los errores.
+- Respuesta CRM (MSG-CRM-SND-20261020-3): el CRM envía por Meta Cloud API y
+  360dialog, y guarda el código en wa_message_status (feed crm.wa_status
+  dentro de /traza/v1/feed, dueño TRAZA). Pero ese feed NO ve el goteo de
+  SenderIO: el goteo sale por el SalesBot de Kommo, no pasa por el CRM.
+- Conclusión: para los errores de SND no hay fuente nueva. El código del
+  globo de Kommo sigue sin estar en la API. Queda como está.
+- No se reusa el token de TRAZA. Si algún día sirviera el feed del CRM, el
+  acceso lo da CREDENCIALES. No hay contrato SND↔CRM por esto.
+
 ## 2026-10-20 — BM5 quieto con base
 
 - BASE DE DATOS de Fisioforma tiene 113 fichas. El BM está activo y en

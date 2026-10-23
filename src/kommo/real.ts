@@ -171,27 +171,32 @@ export class RealKommoClient implements KommoClient {
     return out;
   }
 
-  async getLeadMeta(
-    leadId: number
-  ): Promise<{ telefono: string | null; segmento: string | null }> {
+  async getLeadMeta(leadId: number): Promise<{
+    telefono: string | null;
+    segmento: string | null;
+    tags: string[];
+  }> {
     try {
       const res = await this.req(`/leads/${leadId}?with=contacts`);
-      if (res.status === 204) return { telefono: null, segmento: null };
+      if (res.status === 204) return { telefono: null, segmento: null, tags: [] };
       const lead = (await res.json()) as {
         _embedded?: {
           contacts?: Array<{ id: number; is_main?: boolean }>;
           tags?: Array<{ name?: string }>;
         };
       };
-      // Segmento: primera etiqueta del lead (ej. "Lista12").
-      const segmento = lead._embedded?.tags?.[0]?.name ?? null;
+      // Segmento: primera etiqueta del lead (ej. "Lista12" o "K1K").
+      const tags = (lead._embedded?.tags ?? [])
+        .map((t) => (t.name ?? "").trim())
+        .filter(Boolean);
+      const segmento = tags[0] ?? null;
 
       const contacts = lead._embedded?.contacts ?? [];
-      if (contacts.length === 0) return { telefono: null, segmento };
+      if (contacts.length === 0) return { telefono: null, segmento, tags };
       const main = contacts.find((c) => c.is_main) ?? contacts[0];
 
       const cRes = await this.req(`/contacts/${main.id}`);
-      if (cRes.status === 204) return { telefono: null, segmento };
+      if (cRes.status === 204) return { telefono: null, segmento, tags };
       const contact = (await cRes.json()) as {
         custom_fields_values?: Array<{
           field_code?: string;
@@ -202,10 +207,10 @@ export class RealKommoClient implements KommoClient {
         (f) => f.field_code === "PHONE"
       );
       const telefono = normalizarE164(phoneField?.values?.[0]?.value);
-      return { telefono, segmento };
+      return { telefono, segmento, tags };
     } catch (err) {
       console.error(`[kommo] no se pudo resolver meta de ${leadId}:`, err);
-      return { telefono: null, segmento: null };
+      return { telefono: null, segmento: null, tags: [] };
     }
   }
 
@@ -244,6 +249,39 @@ export class RealKommoClient implements KommoClient {
         ],
       }),
     });
+  }
+
+  async setCampoLeadLote(
+    leadIds: number[],
+    fieldId: number,
+    value: string
+  ): Promise<void> {
+    const CHUNK = 50;
+    for (let i = 0; i < leadIds.length; i += CHUNK) {
+      const body = leadIds.slice(i, i + CHUNK).map((id) => ({
+        id,
+        custom_fields_values: [{ field_id: fieldId, values: [{ value }] }],
+      }));
+      await this.req(`/leads`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+    }
+  }
+
+  async ensureCampoTexto(name: string): Promise<number> {
+    const found = await this.findCustomFieldByName(name);
+    if (found) return found.id;
+    const res = await this.req(`/leads/custom_fields`, {
+      method: "POST",
+      body: JSON.stringify([{ name, type: "text" }]),
+    });
+    const json = (await res.json()) as {
+      _embedded?: { custom_fields?: Array<{ id: number }> };
+    };
+    const id = json._embedded?.custom_fields?.[0]?.id;
+    if (!id) throw new Error(`Kommo no devolvió el campo ${name}`);
+    return id;
   }
 
   async listPipelines(): Promise<KommoPipeline[]> {

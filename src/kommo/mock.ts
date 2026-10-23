@@ -93,13 +93,17 @@ export class MockKommoClient implements KommoClient {
     return out;
   }
 
-  async getLeadMeta(
-    leadId: number
-  ): Promise<{ telefono: string | null; segmento: string | null }> {
+  async getLeadMeta(leadId: number): Promise<{
+    telefono: string | null;
+    segmento: string | null;
+    tags: string[];
+  }> {
     // Datos determinísticos y ficticios para pruebas.
+    const segmento = `Lista${(leadId % 12) + 1}`;
     return {
       telefono: `+54911${String(40000000 + (leadId % 60000000)).slice(0, 8)}`,
-      segmento: `Lista${(leadId % 12) + 1}`,
+      segmento,
+      tags: [segmento],
     };
   }
 
@@ -115,6 +119,22 @@ export class MockKommoClient implements KommoClient {
     value: string
   ): Promise<void> {
     console.log(`[mock] setCampoLead lead=${leadId} field=${fieldId} -> ${value}`);
+  }
+
+  async setCampoLeadLote(
+    leadIds: number[],
+    fieldId: number,
+    value: string
+  ): Promise<void> {
+    console.log(
+      `[mock] setCampoLeadLote n=${leadIds.length} field=${fieldId} -> ${value}`
+    );
+  }
+
+  async ensureCampoTexto(name: string): Promise<number> {
+    const found = await this.findCustomFieldByName(name);
+    if (found) return found.id;
+    return 9900001;
   }
 
   async createPipeline(input: {

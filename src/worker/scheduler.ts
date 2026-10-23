@@ -2,6 +2,10 @@ import { getBm, getActiveBms, patchBm, setProximoTick } from "../services/bm.js"
 import { registrarMovimiento } from "../services/movimientos.js";
 import { getRotacion } from "../services/plantillas.js";
 import {
+  CAMPO_IDENTIFICADOR,
+  valorIdentificador,
+} from "../services/identificador.js";
+import {
   pushEnvioAsync,
   pushEnvioFromTick,
 } from "../services/trazabilidad-push.js";
@@ -23,6 +27,26 @@ const enProceso = new Set<string>();
 /** Polls consecutivos sin lead antes de alertar (evita falsos positivos). */
 const vaciosConsecutivos = new Map<string, number>();
 const VACIOS_ALERTA = 2;
+/** Id del campo IDENTIFICADOR, resuelto una vez por proceso. */
+let cfIdentificadorId: number | null = null;
+let cfIdentificadorListo = false;
+let cfIdentificadorReintento = 0;
+
+async function campoIdentificador(
+  kommo: ReturnType<typeof getKommoClient>
+): Promise<number | null> {
+  if (cfIdentificadorListo) return cfIdentificadorId;
+  if (Date.now() < cfIdentificadorReintento) return null;
+  try {
+    cfIdentificadorId = await kommo.ensureCampoTexto(CAMPO_IDENTIFICADOR);
+    cfIdentificadorListo = true;
+    return cfIdentificadorId;
+  } catch (err) {
+    cfIdentificadorReintento = Date.now() + 10 * 60_000;
+    console.error("[worker] no se pudo asegurar IDENTIFICADOR:", err);
+    return null;
+  }
+}
 
 function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
@@ -179,8 +203,26 @@ async function tickInner(bmId: string, modo: "goteo" | "panel" = "goteo") {
     // Best-effort: si falla, seguimos el envío igual con null.
     const meta = await kommo
       .getLeadMeta(lead.id)
-      .catch(() => ({ telefono: null, segmento: null }));
+      .catch(() => ({ telefono: null, segmento: null, tags: [] as string[] }));
     const telefono = normalizePhoneE164(meta.telefono);
+
+    // El SalesBot no puede condicionar por etiqueta. Estampamos la etiqueta en
+    // IDENTIFICADOR antes de mover, para que la respuesta "Sí" elija el link
+    // (K1K vs el resto). Si falla, el envío sigue.
+    const identificador = valorIdentificador(meta.tags ?? []);
+    if (identificador) {
+      const fieldId = await campoIdentificador(kommo);
+      if (fieldId) {
+        await kommo
+          .setCampoLead(lead.id, fieldId, identificador)
+          .catch((err) =>
+            console.error(
+              `[worker:${bm.id}] no se pudo estampar IDENTIFICADOR:`,
+              err
+            )
+          );
+      }
+    }
 
     // Rotación de plantillas (round-robin): elegimos qué plantilla le toca a este
     // lead y la estampamos en PLANTILLA_ENVIADA ANTES de mover, así el bot la lee

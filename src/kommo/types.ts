@@ -97,9 +97,11 @@ export interface KommoClient {
    * principal y segmento (primera etiqueta del lead). Best-effort: no debe
    * frenar el envío si falla (devuelve null en los campos que no resuelva).
    */
-  getLeadMeta(
-    leadId: number
-  ): Promise<{ telefono: string | null; segmento: string | null }>;
+  getLeadMeta(leadId: number): Promise<{
+    telefono: string | null;
+    segmento: string | null;
+    tags: string[];
+  }>;
 
   /**
    * Lee de un lead el valor del campo personalizado `fieldId` (el que el Salesbot
@@ -113,6 +115,13 @@ export interface KommoClient {
    * la rotación; el bot lee ese campo para rutear al envío correspondiente.
    */
   setCampoLead(leadId: number, fieldId: number, value: string): Promise<void>;
+
+  /** Mismo campo y valor en varios leads. Lotes de 50. */
+  setCampoLeadLote(
+    leadIds: number[],
+    fieldId: number,
+    value: string
+  ): Promise<void>;
 
   /** Lista pipelines y etapas (para el alta de BMs en el panel). */
   listPipelines(): Promise<KommoPipeline[]>;
@@ -133,6 +142,12 @@ export interface KommoClient {
    * de forma idempotente. Devuelve null si no existe.
    */
   findCustomFieldByName(name: string): Promise<{ id: number } | null>;
+
+  /**
+   * Devuelve el id de un campo de texto del lead. Si no existe, lo crea.
+   * Idempotente por nombre.
+   */
+  ensureCampoTexto(name: string): Promise<number>;
 
   /** Lista plantillas de chat. Si `onlyWaba`, filtra solo las WABA. */
   listTemplates(onlyWaba?: boolean): Promise<KommoTemplate[]>;

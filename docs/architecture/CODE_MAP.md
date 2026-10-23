@@ -106,7 +106,8 @@ dashboard/               # React/Vite (panel de operación)
   Defaults `17:30`–`23:59`. Fuera de ventana → re-chequea en 60s.
 - **Tope diario:** `limiteDiario` (default 30). Alcanzado → re-chequea en 300s.
 - **Cómo se drena la cola:** en cada tick toma **1 lead** de la etapa de origen
-  (`getFirstLeadInStage`), estampa plantilla (rotación), lo mueve a destino, +1 al contador,
+  (`getFirstLeadInStage`), estampa plantilla (rotación) y el campo IDENTIFICADOR
+  (la etiqueta, para que el SalesBot distinga K1K), lo mueve a destino, +1 al contador,
   reprograma el próximo tick. Sin leads → marca `sinLeads` tras 2 polls vacíos y sigue.
 - **Recuperación tras reinicio:** `proximoTickAt` se persiste cada tick; al arrancar se
   respeta si es futuro, si no arranca con retardo aleatorio 2–20s (evita ráfaga en redeploy).
