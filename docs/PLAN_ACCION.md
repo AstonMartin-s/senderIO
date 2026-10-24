@@ -1,5 +1,22 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-10-24 — Alta BM7 Agro Mooney (Jugador Activo 888)
+
+- BM7 "Agro Mooney" dado de alta. pipeline 14667319, origen BASE 113331679,
+  envío 113331683, SI 113331687, NO 113331691, ERROR 113331695.
+- WABA 722907647191195 (cuenta Jugador Activo 888, 4 números). chat_source
+  53679. Plantilla Activo1 #60040.
+- Los 4 chat_source se leyeron de la request `talks` (Network) tras un "hola":
+  Agro Mooney 53679 · Agro Norte 53671 · Ganadera Agro 53490 · Ganadera
+  Norte a Sur 53905. El lead se crea sin nombre; se cruzó por hora.
+- El bot no mandaba a leads fríos (talks=0) hasta activar en el bloque de
+  envío "Intenta enviar un mensaje" (escribir primero). Con eso el SalesBot
+  abre el chat con la plantilla. Confirmado punta a punta: lead Jose925mm
+  recibió Activo1.
+- BM7 despausado, contadores en cero, ventana 14:30–23:59, límite 30/día.
+  Base BajoValor (102 leads): misma lista que en BM3 come errores 131046/
+  131026, vigilar proporción de ERROR.
+
 ## 2026-10-23 — Identificador K1K para el link del SalesBot
 
 - La base K1K entra al mismo combo que Fisio/Money. El SalesBot no puede
