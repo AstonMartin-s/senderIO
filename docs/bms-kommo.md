@@ -34,7 +34,7 @@
 | fisioforma (Francesadas) | `1019386220453924` | Aprobado | **BM2** |
 | Los Armando Cereales SRL | `964803575976136` | Aprobado | **BM3** |
 | AMBIENGER ENGENHARIA AMBIENTAL LTDA (nanda_s_collections) | `1313154394221905` | Aprobado | **BM5** |
-| Jugador Activo 888 (2) — Ganadera agro / Agro Mooney / Agro Norte / Ganadera norte a sur | `722907647191195` | Aprobado | (sin asignar) |
+| Jugador Activo 888 (2) — Ganadera agro / Agro Mooney / Agro Norte / Ganadera norte a sur | `722907647191195` | Aprobado | (4 BMs nuevos; plantilla Activo1 #60040) |
 
 ## chat_source id por canal (leído del editor del bot)
 
@@ -49,6 +49,14 @@
 | Ambienger Engenharia Ambiental LTDA | `59690` | (sin asignar) |
 | Manufaktura Ram (viejo SP2) | `58924` | — |
 | Telegram | `58952` | — |
+| Agro Mooney (+54 9 11 2635-0984) | `53679` | (nuevo) |
+| Agro Norte (+54 9 11 6433-0069) | `53671` | (nuevo) |
+| Ganadera Agro (+54 9 11 2402-4628) | `53490` | (nuevo) |
+| Ganadera Norte a Sur (+54 9 11 6433-4732) | `53905` | (nuevo) |
+
+> Los 4 comparten WABA id `722907647191195` (cuenta "Jugador Activo 888").
+> El source id se leyó de la request `talks` (Network) tras escribirles un
+> "hola": el lead se crea sin nombre, así que se cruzó por la hora del chat.
 
 Lista completa de canales: ver salida del snippet del editor (Inbox → filtro de canales).
 
