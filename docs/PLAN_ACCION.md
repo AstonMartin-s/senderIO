@@ -1,5 +1,12 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-10-29 — IDENTIFICADOR volve1 para ListaVolve1
+
+- El bot filtra el campo de lead IDENTIFICADOR (id 1231800). K1K queda "K1K".
+  M1 queda "M1" cuando el worker mueve el lead; en la base todavía está vacío.
+- ListaVolve1 (569 leads, pipeline Publicidad 12175667) se estampó "volve1".
+  El worker, al mover, escribe "volve1" y no el nombre crudo de la etiqueta.
+
 ## 2026-10-24 — Alta BM7 Agro Mooney (Jugador Activo 888)
 
 - BM7 "Agro Mooney" dado de alta. pipeline 14667319, origen BASE 113331679,
