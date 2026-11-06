@@ -20,6 +20,20 @@ export function toIsoArOrNull(
 export const COSTO_POR_MENSAJE = 0.0618;
 export const MONEDA = "USD";
 
+/** Plataformas que no son Money Maker. No salen a Trazabilidad. */
+export const PLATAFORMAS_AJENAS = ["m1", "k1", "k1k", "s1", "clientes1"] as const;
+const PLATAFORMAS_AJENAS_SET = new Set<string>(PLATAFORMAS_AJENAS);
+
+/** True si el envío corresponde a Money Maker (no es M1, K1 ni S1). Vacío también. */
+export function esMoneyMaker(plataforma: string | null | undefined): boolean {
+  const p = (plataforma ?? "").trim().toLowerCase();
+  if (!p) return true;
+  return !PLATAFORMAS_AJENAS_SET.has(p);
+}
+
+/** Valor de plataforma que ve Trazabilidad para un envío de Money Maker. */
+export const PLATAFORMA_MONEY = "mooney";
+
 export type EnvioTrazabilidad = {
   fuente_envio: string;
   plataforma: string;
@@ -140,7 +154,7 @@ export function buildEnvioFromGrupo(
 
   return {
     fuente_envio: fuente,
-    plataforma: bm.plataforma ?? "mooney",
+    plataforma: esMoneyMaker(bm.plataforma) ? PLATAFORMA_MONEY : (bm.plataforma ?? PLATAFORMA_MONEY),
     campaign_id_externo: bm.campaignId ?? g.bmId,
     campaign_nombre: bm.campaignNombre ?? bm.nombre ?? g.bmId,
     template_nombre: g.templateNombre ?? pl?.nombre ?? g.plantilla ?? "",

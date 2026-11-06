@@ -1,5 +1,14 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-11-06 — Feed de traza: solo Money Maker
+
+- A Trazabilidad (feed y push) salen los envíos que no son plataforma M1, K1
+  ni S1. Esos quedan afuera. El resto se publica con plataforma `mooney`.
+- El aviso a TRAZA no detalla el criterio: solo que se reactualizaron las
+  métricas después de una verificación y que vuelvan a drenar el feed.
+
+## 2026-10-29 — IDENTIFICADOR volve1 para ListaVolve1
+
 ## 2026-10-29 — IDENTIFICADOR volve1 para ListaVolve1
 
 - El bot filtra el campo de lead IDENTIFICADOR (id 1231800). K1K queda "K1K".

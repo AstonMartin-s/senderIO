@@ -7,6 +7,8 @@ import {
   aggregateGrupos,
   buildEnvioFromGrupo,
   buildPlantillaMap,
+  esMoneyMaker,
+  PLATAFORMA_MONEY,
   resolvePlantilla,
   type EnvioTrazabilidad,
 } from "./trazabilidad.js";
@@ -70,6 +72,7 @@ export async function pushEnvioFromTick(
     resultado: null as "si" | "no" | "error" | null,
     tsResultado: null,
   };
+  if (!esMoneyMaker(bm.plataforma)) return;
   const pl =
     templateNombre && mensajeEnviado
       ? { nombre: templateNombre, contenido: mensajeEnviado }
@@ -127,7 +130,7 @@ function buildPlantillaCatalogo(
 ): PlantillaCatalogo {
   return {
     template_nombre: p.nombre,
-    plataforma: bm?.plataforma ?? "mooney",
+    plataforma: PLATAFORMA_MONEY,
     campaign_id_externo: bm?.campaignId ?? bm?.id ?? p.bmId ?? "",
     contenido: p.contenido ?? "",
   };
@@ -141,6 +144,7 @@ export async function pushPlantillaCatalogo(p: {
 }): Promise<void> {
   if (!config.trazabilidad.pushEnabled || !config.trazabilidad.apiUrl) return;
   const bm = await getBm(p.bmId);
+  if (!esMoneyMaker(bm?.plataforma)) return;
   await postPlantillas([buildPlantillaCatalogo(p, bm)]);
 }
 
@@ -155,7 +159,7 @@ export async function syncPlantillasCatalogo(): Promise<number> {
   const bmById = new Map(bms.map((b) => [b.id, b]));
 
   const items = plts
-    .filter((p) => p.contenido)
+    .filter((p) => p.contenido && esMoneyMaker(bmById.get(p.bmId)?.plataforma))
     .map((p) => buildPlantillaCatalogo(p, bmById.get(p.bmId)));
 
   if (items.length === 0) return 0;
@@ -200,7 +204,7 @@ export async function pushEnvioForBmLead(
       .orderBy(asc(logMovimientos.ts)),
     db.select().from(plantillas).where(eq(plantillas.bmId, bmId)),
   ]);
-  if (!bm) return;
+  if (!bm || !esMoneyMaker(bm.plataforma)) return;
 
   const g = aggregateGrupos(rows).get(`${bmId}::${leadId}`);
   if (!g?.tsEnviado || !g.telefono) return;
@@ -233,7 +237,7 @@ export async function syncEnviosRecientes(horas = 24): Promise<number> {
   for (const g of grupos.values()) {
     if (!g.tsEnviado || !g.telefono) continue;
     const bm = bmById.get(g.bmId);
-    if (!bm) continue;
+    if (!bm || !esMoneyMaker(bm.plataforma)) continue;
     const pl = resolvePlantilla(g, plBy);
     envios.push(buildEnvioFromGrupo(g, bm, pl));
   }

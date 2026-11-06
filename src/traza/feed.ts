@@ -7,7 +7,13 @@
  */
 import { pool } from "../db/client.js";
 import { normalizePhoneE164 } from "../lib/phone.js";
-import { COSTO_POR_MENSAJE, MONEDA, buildMessageId } from "../services/trazabilidad.js";
+import {
+  COSTO_POR_MENSAJE,
+  MONEDA,
+  PLATAFORMA_MONEY,
+  PLATAFORMAS_AJENAS,
+  buildMessageId,
+} from "../services/trazabilidad.js";
 
 export const FEED_TYPES = ["senderio.envio", "senderio.plantilla"] as const;
 export type FeedType = (typeof FEED_TYPES)[number];
@@ -145,6 +151,9 @@ async function fetchEnvios(
   const where: string[] = [];
   const named: Record<string, unknown> = { LIMIT: limit };
 
+  where.push(
+    `COALESCE(lower(e.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")})`
+  );
   if (since) {
     where.push(`e.ts_enviado >= $SINCE::timestamptz`);
     named.SINCE = since.toISOString();
@@ -238,7 +247,7 @@ async function fetchEnvios(
       telefono,
       payload: {
         fuenteEnvio: fuente,
-        plataforma: s(r.plataforma) ?? "mooney",
+        plataforma: PLATAFORMA_MONEY,
         campaignIdExterno: s(r.campaign_id) ?? r.bm_id,
         campaignNombre: s(r.campaign_nombre) ?? s(r.bm_nombre) ?? r.bm_id,
         templateNombre: s(r.template_nombre) ?? s(r.plantilla),
@@ -282,6 +291,9 @@ async function fetchPlantillas(
   const where: string[] = [];
   const named: Record<string, unknown> = { LIMIT: limit };
 
+  where.push(
+    `COALESCE(lower(b.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")})`
+  );
   if (since) {
     where.push(`p.updated_at >= $SINCE::timestamptz`);
     named.SINCE = since.toISOString();
@@ -337,7 +349,7 @@ async function fetchPlantillas(
       idioma: s(r.idioma),
       categoria: s(r.categoria),
       estado: s(r.estado),
-      plataforma: s(r.plataforma) ?? "mooney",
+      plataforma: PLATAFORMA_MONEY,
       campaignIdExterno: s(r.campaign_id) ?? s(r.bm_id),
     },
   }));
