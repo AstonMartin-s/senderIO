@@ -79,6 +79,7 @@ async function main() {
   for (const c of [
     { id: "mooney", nombre: "CRM", etiquetas: [] as string[] },
     { id: "king", nombre: "King", etiquetas: [] as string[] },
+    { id: "damico", nombre: "Damico", etiquetas: [] as string[] },
     { id: "piliking", nombre: "Piliking", etiquetas: ["piliking"] },
     { id: "clienteS1", nombre: "ClienteS1", etiquetas: ["clientes1"] },
     { id: "clienteS2", nombre: "ClienteS2", etiquetas: ["clientes2"] },

@@ -1,5 +1,14 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-11-10 — Tenant Damico (Kommo propia)
+
+- Cliente `damico` en el selector, separado del CRM. BMs `DAMICO-BM*`.
+  Webhook `POST /webhook/kommo/damico`. Credenciales `KOMMO_DAMICO_*` (no en git).
+- El worker usa la Kommo del BM, no la de Mooney. Sus envíos no entran al
+  feed de Money Maker. Falta cargar subdominio y token en Railway para el alta.
+
+## 2026-11-06 — Feed de traza: solo Money Maker
+
 ## 2026-11-06 — Feed de traza: solo Money Maker
 
 - A Trazabilidad (feed y push) salen los envíos que no son plataforma M1, K1

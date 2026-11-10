@@ -185,11 +185,13 @@ async function fetchEnvios(
         b.plataforma,
         b.campaign_id,
         b.campaign_nombre,
-        b.nombre AS bm_nombre
+        b.nombre AS bm_nombre,
+        b.client_id
       FROM log_movimientos m
       LEFT JOIN bm_config b ON b.id = m.bm_id
       WHERE m.accion = 'movido_a_envio'
         AND m.lead_id IS NOT NULL
+        AND COALESCE(b.client_id, 'mooney') = 'mooney'
       ORDER BY m.bm_id, m.lead_id, m.ts ASC
     ),
     resultados AS (
@@ -292,7 +294,7 @@ async function fetchPlantillas(
   const named: Record<string, unknown> = { LIMIT: limit };
 
   where.push(
-    `COALESCE(lower(b.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")})`
+    `COALESCE(b.client_id, 'mooney') = 'mooney' AND COALESCE(lower(b.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")})`
   );
   if (since) {
     where.push(`p.updated_at >= $SINCE::timestamptz`);

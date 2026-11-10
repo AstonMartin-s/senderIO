@@ -13,7 +13,7 @@ function optionalNumber(name: string): number | null {
   return v ? Number(v) : null;
 }
 
-export type ClientId = "mooney" | "king";
+export type ClientId = "mooney" | "king" | "damico";
 
 export interface ClientKommoConfig {
   subdomain: string;
@@ -23,7 +23,7 @@ export interface ClientKommoConfig {
 }
 
 function clientKommo(
-  prefix: "KOMMO" | "KOMMO_KING",
+  prefix: "KOMMO" | "KOMMO_KING" | "KOMMO_DAMICO",
   fallback?: ClientKommoConfig
 ): ClientKommoConfig {
   const subdomain = process.env[`${prefix}_SUBDOMAIN`] ?? fallback?.subdomain ?? "";
@@ -48,6 +48,7 @@ export const config = {
     byClient: {
       mooney: mooneyKommo,
       king: clientKommo("KOMMO_KING"),
+      damico: clientKommo("KOMMO_DAMICO"),
     } satisfies Record<ClientId, ClientKommoConfig>,
   },
   api: {
@@ -72,7 +73,7 @@ export const config = {
 } as const;
 
 export function isClientId(v: unknown): v is ClientId {
-  return v === "mooney" || v === "king";
+  return v === "mooney" || v === "king" || v === "damico";
 }
 
 export function kommoFor(clientId: string): ClientKommoConfig {

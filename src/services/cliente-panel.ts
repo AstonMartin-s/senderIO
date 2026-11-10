@@ -197,14 +197,14 @@ export async function setListaFiltrada(
   });
 }
 
-const OPERATIVOS = ["mooney", "king"];
+const OPERATIVOS = ["mooney", "king", "damico"];
 
 /** Clientes de paquete (no los tenants de operación Mooney/King). */
 export async function listClientesPaquete() {
   const rows = await db
     .select()
     .from(clients)
-    .where(sql`${clients.id} not in ('mooney', 'king')`);
+    .where(sql`${clients.id} not in ('mooney', 'king', 'damico')`);
   const out = [];
   for (const c of rows) {
     const [bases, paquete, panel] = await Promise.all([

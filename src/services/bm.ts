@@ -70,6 +70,7 @@ export async function getBmByPipeline(
 /** Prefijo de id por cliente para no chocar PKs globales (logs/plantillas). */
 function prefijoIdBm(clientId: string): { re: RegExp; prefix: string } {
   if (clientId === "king") return { re: /^KING-BM(\d+)$/i, prefix: "KING-BM" };
+  if (clientId === "damico") return { re: /^DAMICO-BM(\d+)$/i, prefix: "DAMICO-BM" };
   return { re: /^BM(\d+)$/i, prefix: "BM" };
 }
 
@@ -140,6 +141,8 @@ export async function altaAutomatica(
     stageNoId: byName("NO"),
     wabaId: input.wabaId || null,
     chatSourceId: input.chatSourceId ?? null,
+    // Damico no es Money Maker: su plataforma no entra al feed de traza.
+    plataforma: clientId === "damico" ? "damico" : undefined,
   });
 }
 

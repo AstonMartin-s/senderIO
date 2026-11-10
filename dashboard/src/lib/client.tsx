@@ -62,6 +62,12 @@ export function ClientProvider({ children }: { children: ReactNode }) {
             activo: true,
             kommo: { configured: false, subdomain: null, hasCfPlantilla: false },
           },
+          {
+            id: "damico",
+            nombre: "Damico",
+            activo: true,
+            kommo: { configured: false, subdomain: null, hasCfPlantilla: false },
+          },
         ]);
       });
   }, []);

@@ -148,6 +148,13 @@
       "when": 1790025000000,
       "tag": "0020_paquete_con_tope",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790030000000,
+      "tag": "0021_cliente_damico",
+      "breakpoints": true
     }
   ]
 }

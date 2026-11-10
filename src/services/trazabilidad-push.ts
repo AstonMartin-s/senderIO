@@ -7,8 +7,8 @@ import {
   aggregateGrupos,
   buildEnvioFromGrupo,
   buildPlantillaMap,
-  esMoneyMaker,
   PLATAFORMA_MONEY,
+  publicaEnTraza,
   resolvePlantilla,
   type EnvioTrazabilidad,
 } from "./trazabilidad.js";
@@ -72,7 +72,7 @@ export async function pushEnvioFromTick(
     resultado: null as "si" | "no" | "error" | null,
     tsResultado: null,
   };
-  if (!esMoneyMaker(bm.plataforma)) return;
+  if (!publicaEnTraza(bm)) return;
   const pl =
     templateNombre && mensajeEnviado
       ? { nombre: templateNombre, contenido: mensajeEnviado }
@@ -144,7 +144,7 @@ export async function pushPlantillaCatalogo(p: {
 }): Promise<void> {
   if (!config.trazabilidad.pushEnabled || !config.trazabilidad.apiUrl) return;
   const bm = await getBm(p.bmId);
-  if (!esMoneyMaker(bm?.plataforma)) return;
+  if (!bm || !publicaEnTraza(bm)) return;
   await postPlantillas([buildPlantillaCatalogo(p, bm)]);
 }
 
@@ -159,7 +159,10 @@ export async function syncPlantillasCatalogo(): Promise<number> {
   const bmById = new Map(bms.map((b) => [b.id, b]));
 
   const items = plts
-    .filter((p) => p.contenido && esMoneyMaker(bmById.get(p.bmId)?.plataforma))
+    .filter((p) => {
+      const bm = bmById.get(p.bmId);
+      return p.contenido && bm && publicaEnTraza(bm);
+    })
     .map((p) => buildPlantillaCatalogo(p, bmById.get(p.bmId)));
 
   if (items.length === 0) return 0;
@@ -204,7 +207,7 @@ export async function pushEnvioForBmLead(
       .orderBy(asc(logMovimientos.ts)),
     db.select().from(plantillas).where(eq(plantillas.bmId, bmId)),
   ]);
-  if (!bm || !esMoneyMaker(bm.plataforma)) return;
+  if (!bm || !publicaEnTraza(bm)) return;
 
   const g = aggregateGrupos(rows).get(`${bmId}::${leadId}`);
   if (!g?.tsEnviado || !g.telefono) return;
@@ -237,7 +240,7 @@ export async function syncEnviosRecientes(horas = 24): Promise<number> {
   for (const g of grupos.values()) {
     if (!g.tsEnviado || !g.telefono) continue;
     const bm = bmById.get(g.bmId);
-    if (!bm || !esMoneyMaker(bm.plataforma)) continue;
+    if (!bm || !publicaEnTraza(bm)) continue;
     const pl = resolvePlantilla(g, plBy);
     envios.push(buildEnvioFromGrupo(g, bm, pl));
   }

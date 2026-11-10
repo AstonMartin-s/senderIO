@@ -87,8 +87,9 @@ export default function App() {
         {(clients.length
           ? clients
           : [
-              { id: "mooney", nombre: "Mooney" },
+              { id: "mooney", nombre: "CRM" },
               { id: "king", nombre: "King" },
+              { id: "damico", nombre: "Damico" },
             ]
         ).map((c) => (
           <option key={c.id} value={c.id}>
@@ -219,6 +220,14 @@ export default function App() {
                 <code className="font-mono text-[12px]">KOMMO_KING_SUBDOMAIN</code> y{" "}
                 <code className="font-mono text-[12px]">KOMMO_KING_TOKEN</code> en
                 el entorno. Sin eso no se puede hablar con su Kommo ni crear el BM.
+              </div>
+            )}
+            {clientId === "damico" && !actual?.kommo.configured && (
+              <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                Damico usa su propia Kommo, no la del CRM. Faltan{" "}
+                <code className="font-mono text-[12px]">KOMMO_DAMICO_SUBDOMAIN</code> y{" "}
+                <code className="font-mono text-[12px]">KOMMO_DAMICO_TOKEN</code> en
+                el entorno.
               </div>
             )}
             {view === "overview" && <Overview />}

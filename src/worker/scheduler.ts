@@ -149,7 +149,7 @@ async function tickInner(bmId: string, modo: "goteo" | "panel" = "goteo") {
     return;
   }
 
-  const kommo = getKommoClient();
+  const kommo = getKommoClient(bm.clientId);
   // La etapa de origen puede vivir en otro pipeline (base general compartida).
   const origenPipeline = bm.stageOrigenPipelineId ?? bm.pipelineId;
   const { lead, error: errorOrigen } = await buscarLeadEnOrigen(

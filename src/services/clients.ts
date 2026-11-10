@@ -30,7 +30,7 @@ export async function createClienteEtiqueta(input: {
   if (!nombre) throw new Error("nombre requerido");
   const id = (input.id?.trim() || slugId(nombre)).trim();
   if (!id) throw new Error("no se pudo derivar un id válido del nombre");
-  if (["mooney", "king"].includes(id)) {
+  if (["mooney", "king", "damico"].includes(id)) {
     throw new Error(`id reservado: ${id}`);
   }
   const etiquetas = [

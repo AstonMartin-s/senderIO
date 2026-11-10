@@ -21,7 +21,7 @@ export const COSTO_POR_MENSAJE = 0.0618;
 export const MONEDA = "USD";
 
 /** Plataformas que no son Money Maker. No salen a Trazabilidad. */
-export const PLATAFORMAS_AJENAS = ["m1", "k1", "k1k", "s1", "clientes1"] as const;
+export const PLATAFORMAS_AJENAS = ["m1", "k1", "k1k", "s1", "clientes1", "damico"] as const;
 const PLATAFORMAS_AJENAS_SET = new Set<string>(PLATAFORMAS_AJENAS);
 
 /** True si el envío corresponde a Money Maker (no es M1, K1 ni S1). Vacío también. */
@@ -33,6 +33,15 @@ export function esMoneyMaker(plataforma: string | null | undefined): boolean {
 
 /** Valor de plataforma que ve Trazabilidad para un envío de Money Maker. */
 export const PLATAFORMA_MONEY = "mooney";
+
+/** Solo la cuenta Mooney (y no M1/K1/S1) se publica en Trazabilidad. */
+export function publicaEnTraza(bm: {
+  clientId?: string | null;
+  plataforma?: string | null;
+}): boolean {
+  if ((bm.clientId ?? "mooney") !== "mooney") return false;
+  return esMoneyMaker(bm.plataforma);
+}
 
 export type EnvioTrazabilidad = {
   fuente_envio: string;

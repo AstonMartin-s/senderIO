@@ -123,7 +123,7 @@ async function build() {
     ok: true,
     ts: new Date().toISOString(),
     kommo: config.kommo.mode,
-    clients: (["mooney", "king"] as const).map((id) => ({
+    clients: (["mooney", "king", "damico"] as const).map((id) => ({
       id,
       configured: !!(
         config.kommo.byClient[id].subdomain && config.kommo.byClient[id].token

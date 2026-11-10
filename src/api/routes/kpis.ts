@@ -18,7 +18,7 @@ import { todayLocal } from "../../lib/time.js";
 import {
   aggregateGrupos,
   buildEnvioFromGrupo,
-  esMoneyMaker,
+  publicaEnTraza,
   buildPlantillaMap,
   envioToCsvRow,
   resolvePlantilla,
@@ -252,7 +252,7 @@ export async function kpiRoutes(app: FastifyInstance) {
       .sort((a, b) => a.tsEnviado!.getTime() - b.tsEnviado!.getTime())
       .map((g) => {
         const bm = bmById.get(g.bmId);
-        if (!bm || !esMoneyMaker(bm.plataforma)) return null;
+        if (!bm || !publicaEnTraza(bm)) return null;
         const pl = resolvePlantilla(g, plBy);
         return envioToCsvRow(buildEnvioFromGrupo(g, bm, pl), csvEsc);
       })
