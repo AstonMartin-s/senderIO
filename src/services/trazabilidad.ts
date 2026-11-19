@@ -31,8 +31,8 @@ export function esMoneyMaker(plataforma: string | null | undefined): boolean {
   return !PLATAFORMAS_AJENAS_SET.has(p);
 }
 
-/** Valor de plataforma que ve Trazabilidad para un envío de Money Maker. */
-export const PLATAFORMA_MONEY = "mooney";
+/** Valor de plataforma que ve Trazabilidad. Lo que publicamos es PAM. */
+export const PLATAFORMA_MONEY = "pam";
 
 /** Etiquetas que son Mooney (spam interno, El Rey y BajoValor incluidos). */
 export const ETIQUETAS_MOONEY = [

@@ -19,6 +19,11 @@
 - BM9 Ganadera Agro, chat_source `53490`, pipeline `14752167`.
 - BM10 Ganadera Norte a Sur, chat_source `53905`, pipeline `14752171`.
 
+## 2026-11-19 — Lo publicado en traza sale como pam
+
+- Las mismas etiquetas de Mooney (bblack, BajoValor y las listas internas).
+  M1, K1K y ListaVolve1 siguen afuera. La plataforma del feed es `pam`.
+
 ## 2026-11-18 — Traza solo etiquetas Mooney
 
 - El feed y el push publican solo estas etiquetas: bblack, BajoValor,
