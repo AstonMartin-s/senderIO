@@ -9,6 +9,7 @@ import { pool } from "../db/client.js";
 import { normalizePhoneE164 } from "../lib/phone.js";
 import {
   COSTO_POR_MENSAJE,
+  ETIQUETAS_MOONEY,
   MONEDA,
   PLATAFORMA_MONEY,
   PLATAFORMAS_AJENAS,
@@ -152,7 +153,7 @@ async function fetchEnvios(
   const named: Record<string, unknown> = { LIMIT: limit };
 
   where.push(
-    `COALESCE(lower(e.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")})`
+    `(COALESCE(btrim(e.segmento), '') = '' OR lower(e.segmento) IN (${ETIQUETAS_MOONEY.map((p) => `'${p}'`).join(", ")}))`
   );
   if (since) {
     where.push(`e.ts_enviado >= $SINCE::timestamptz`);
@@ -294,7 +295,7 @@ async function fetchPlantillas(
   const named: Record<string, unknown> = { LIMIT: limit };
 
   where.push(
-    `COALESCE(b.client_id, 'mooney') = 'mooney' AND COALESCE(lower(b.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")})`
+    `COALESCE(b.client_id, 'mooney') = 'mooney' AND COALESCE(lower(b.plataforma), '') NOT IN (${PLATAFORMAS_AJENAS.map((p) => `'${p}'`).join(", ")}) AND p.nombre NOT ILIKE '%volve%'`
   );
   if (since) {
     where.push(`p.updated_at >= $SINCE::timestamptz`);

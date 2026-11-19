@@ -8,6 +8,7 @@ import {
   buildEnvioFromGrupo,
   buildPlantillaMap,
   PLATAFORMA_MONEY,
+  esMoneyMaker,
   publicaEnTraza,
   resolvePlantilla,
   type EnvioTrazabilidad,
@@ -72,7 +73,7 @@ export async function pushEnvioFromTick(
     resultado: null as "si" | "no" | "error" | null,
     tsResultado: null,
   };
-  if (!publicaEnTraza(bm)) return;
+  if (!publicaEnTraza(bm, segmento)) return;
   const pl =
     templateNombre && mensajeEnviado
       ? { nombre: templateNombre, contenido: mensajeEnviado }
@@ -136,7 +137,11 @@ function buildPlantillaCatalogo(
   };
 }
 
-/** Push del catálogo de una sola plantilla (resuelve plataforma desde su BM). */
+function catalogoMooney(bm: BmConfig, nombre: string): boolean {
+  if ((bm.clientId ?? "mooney") !== "mooney") return false;
+  if (!esMoneyMaker(bm.plataforma)) return false;
+  return !/volve/i.test(nombre);
+}
 export async function pushPlantillaCatalogo(p: {
   bmId: string;
   nombre: string;
@@ -144,7 +149,7 @@ export async function pushPlantillaCatalogo(p: {
 }): Promise<void> {
   if (!config.trazabilidad.pushEnabled || !config.trazabilidad.apiUrl) return;
   const bm = await getBm(p.bmId);
-  if (!bm || !publicaEnTraza(bm)) return;
+  if (!bm || !catalogoMooney(bm, p.nombre)) return;
   await postPlantillas([buildPlantillaCatalogo(p, bm)]);
 }
 
@@ -161,7 +166,7 @@ export async function syncPlantillasCatalogo(): Promise<number> {
   const items = plts
     .filter((p) => {
       const bm = bmById.get(p.bmId);
-      return p.contenido && bm && publicaEnTraza(bm);
+      return p.contenido && bm && catalogoMooney(bm, p.nombre);
     })
     .map((p) => buildPlantillaCatalogo(p, bmById.get(p.bmId)));
 
@@ -207,10 +212,11 @@ export async function pushEnvioForBmLead(
       .orderBy(asc(logMovimientos.ts)),
     db.select().from(plantillas).where(eq(plantillas.bmId, bmId)),
   ]);
-  if (!bm || !publicaEnTraza(bm)) return;
+  if (!bm) return;
 
   const g = aggregateGrupos(rows).get(`${bmId}::${leadId}`);
   if (!g?.tsEnviado || !g.telefono) return;
+  if (!publicaEnTraza(bm, g.segmento)) return;
 
   const plBy = buildPlantillaMap(plts);
   const pl = resolvePlantilla(g, plBy);
@@ -240,7 +246,7 @@ export async function syncEnviosRecientes(horas = 24): Promise<number> {
   for (const g of grupos.values()) {
     if (!g.tsEnviado || !g.telefono) continue;
     const bm = bmById.get(g.bmId);
-    if (!bm || !publicaEnTraza(bm)) continue;
+    if (!bm || !publicaEnTraza(bm, g.segmento)) continue;
     const pl = resolvePlantilla(g, plBy);
     envios.push(buildEnvioFromGrupo(g, bm, pl));
   }

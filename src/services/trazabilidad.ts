@@ -34,13 +34,39 @@ export function esMoneyMaker(plataforma: string | null | undefined): boolean {
 /** Valor de plataforma que ve Trazabilidad para un envío de Money Maker. */
 export const PLATAFORMA_MONEY = "mooney";
 
-/** Solo la cuenta Mooney (y no M1/K1/S1) se publica en Trazabilidad. */
-export function publicaEnTraza(bm: {
-  clientId?: string | null;
-  plataforma?: string | null;
-}): boolean {
+/** Etiquetas que son Mooney (spam interno, El Rey y BajoValor incluidos). */
+export const ETIQUETAS_MOONEY = [
+  "bblack",
+  "bajovalor",
+  "listavalormedio1",
+  "dormidovipalto",
+  "listavalormediodormido1",
+] as const;
+
+const ETIQUETAS_MOONEY_SET = new Set<string>(ETIQUETAS_MOONEY);
+
+function claveEtiqueta(segmento: string): string {
+  return segmento
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/** True si la etiqueta del lead es de Mooney. Sin etiqueta también. */
+export function esEtiquetaMooney(segmento: string | null | undefined): boolean {
+  const raw = (segmento ?? "").trim();
+  if (!raw || raw === "(sin)") return true;
+  return ETIQUETAS_MOONEY_SET.has(claveEtiqueta(raw));
+}
+
+/** Solo envíos de la cuenta Mooney con etiqueta Mooney se publican. */
+export function publicaEnTraza(
+  bm: { clientId?: string | null },
+  segmento: string | null | undefined
+): boolean {
   if ((bm.clientId ?? "mooney") !== "mooney") return false;
-  return esMoneyMaker(bm.plataforma);
+  return esEtiquetaMooney(segmento);
 }
 
 export type EnvioTrazabilidad = {
@@ -163,7 +189,9 @@ export function buildEnvioFromGrupo(
 
   return {
     fuente_envio: fuente,
-    plataforma: esMoneyMaker(bm.plataforma) ? PLATAFORMA_MONEY : (bm.plataforma ?? PLATAFORMA_MONEY),
+    plataforma: esEtiquetaMooney(g.segmento)
+      ? PLATAFORMA_MONEY
+      : (bm.plataforma ?? PLATAFORMA_MONEY),
     campaign_id_externo: bm.campaignId ?? g.bmId,
     campaign_nombre: bm.campaignNombre ?? bm.nombre ?? g.bmId,
     template_nombre: g.templateNombre ?? pl?.nombre ?? g.plantilla ?? "",

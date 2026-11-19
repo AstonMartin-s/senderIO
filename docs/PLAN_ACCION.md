@@ -1,5 +1,30 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-11-10 — Consulta a CRM-WP por envío fuerte
+
+- R1 MSG-TOB-20261110-1. Pregunta qué puede sostener la salida partner
+  sin bajar el cupo de Meta. No se cambió ritmo ni se prendió ningún BM.
+- Respuesta CRM-WP el mismo día: el WABA Agro `722907647191195` no está
+  en el inventario partner. La salida Cloud API solo tiene Vurdian
+  (daily_cap vacío, calidad sin leer) y positivepromises (tope manual 50).
+  Historial real: 6 envíos. El cupo de únicos/24 h no se lee de Graph.
+  Un ensayo tiene que ser en esas líneas, con OK de CRM Main, no en Agro.
+
+## 2026-11-10 — Alta BM8 BM9 BM10 (Jugador Activo 888)
+
+- Mismo WABA `722907647191195` que BM7. Embudo propio en Kommo, apagados
+  (sin base y sin Salesbot importado). Ritmo copiado de BM7: 70/día,
+  14:30–23:59, intervalo 540–780 s. Plantillas Activo1 `60040` y Activo2 `60632`.
+- BM8 Agro Norte, chat_source `53671`, pipeline `14752163`.
+- BM9 Ganadera Agro, chat_source `53490`, pipeline `14752167`.
+- BM10 Ganadera Norte a Sur, chat_source `53905`, pipeline `14752171`.
+
+## 2026-11-18 — Traza solo etiquetas Mooney
+
+- El feed y el push publican solo estas etiquetas: bblack, BajoValor,
+  ListaValorMedio1, dormidoVIPAlto, ListaValorMedioDormido1 y sin etiqueta.
+  M1, K1K, ListaVolve1 y cualquier otra no salen. Damico tampoco.
+
 ## 2026-11-10 — Tenant Damico (Kommo propia)
 
 - Cliente `damico` en el selector, separado del CRM. BMs `DAMICO-BM*`.
