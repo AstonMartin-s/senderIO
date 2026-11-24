@@ -1,5 +1,18 @@
 # PLAN DE ACCIÓN — SenderIO (SND)
 
+## 2026-11-24 — Handoff de feeds a Control (Dragon)
+
+- R1 MSG-SND-20261124-TRZ-1 a Dragon: sumar el programa `senderio` al
+  drenaje de Control. Feed `https://senderio-production.up.railway.app/traza/v1/feed`
+  (Bearer SENDERIO_TOKEN, tipos senderio.envio/senderio.plantilla).
+  Verificado hoy: 200 con Bearer, 401 sin, program `senderio`, plataforma `pam`,
+  filtrado solo a etiquetas Mooney.
+- Token SENDERIO_TOKEN (y BLASTER_TOKEN) entregados por canal CRED en
+  `boveda/trazabilidad/real/control-feeds.env` (600, git-ignored). No por chat.
+- Blaster NO se suma todavía: servicio `api` CRASHED desde 2026-11-22 por
+  `ENOSPC` (volumen /app/dbdata lleno). Queda pendiente hasta liberar el
+  volumen en el chat de Blaster.
+
 ## 2026-11-10 — Consulta a CRM-WP por envío fuerte
 
 - R1 MSG-TOB-20261110-1. Pregunta qué puede sostener la salida partner
